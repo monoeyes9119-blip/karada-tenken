@@ -63,7 +63,7 @@ header.top .sub { color: var(--text-sub); font-size: 12.5px; }
 }
 .privacy-banner strong { color: var(--good); }
 
-section.panel {
+.panel {
   background: var(--panel-bg);
   border: 1px solid var(--border);
   border-radius: 22px;
@@ -71,7 +71,7 @@ section.panel {
   margin-bottom: 18px;
   box-shadow: 0 6px 18px rgba(173, 67, 37, 0.05);
 }
-section.panel h2 {
+.panel h2 {
   font-size: 16px;
   margin: 0 0 4px;
   display: flex;
@@ -80,10 +80,82 @@ section.panel h2 {
   font-weight: 700;
   color: var(--text-main);
 }
-section.panel h2 .num {
+.panel h2 .num {
   font-size: 12px; color: var(--accent-text); font-weight: 700; letter-spacing: .04em; flex: none;
 }
-section.panel .panel-sub { font-size: 12.5px; color: var(--text-sub); margin-bottom: 16px; }
+.panel .panel-sub { font-size: 12.5px; color: var(--text-sub); margin-bottom: 16px; }
+
+/* --- 主役アクション（ヒーロー直下の取り込み導線） --- */
+.hero-copy { font-size: 13.5px; color: var(--text-main); margin: 8px 0 4px; line-height: 1.75; }
+.sample-btn {
+  display: block; width: 100%; margin-top: 10px; min-height: 44px; padding: 0 16px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--accent-text);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.sample-btn:active { background: var(--accent-soft); }
+
+/* --- わたしの情報（折りたたみ） --- */
+details.profile-details { padding: 14px 22px; }
+details.profile-details[open] { padding-bottom: 20px; }
+.profile-summary {
+  cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 2px;
+  font-size: 14px; font-weight: 700; color: var(--text-main);
+}
+.profile-summary::-webkit-details-marker { display: none; }
+.profile-summary .ps-note { font-size: 12px; font-weight: 400; color: var(--text-sub); }
+.profile-summary::before { content: "▸"; float: right; color: var(--accent-text); }
+details.profile-details[open] .profile-summary::before { content: "▾"; }
+.profile-body { margin-top: 14px; }
+
+/* --- 書き出し手順（番号付き） --- */
+.import-help ol { margin: 0; padding-left: 22px; }
+.import-help ol li { margin: 6px 0; }
+.import-help .help-note { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--text-faint); font-size: 12px; }
+
+/* --- デモバナー --- */
+.demo-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+  background: var(--accent); color: #fff; padding: 10px 14px;
+  display: none; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  font-size: 12.5px; font-weight: 700; box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+.demo-banner.visible { display: flex; }
+.demo-banner .demo-exit-btn {
+  min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.75);
+  background: rgba(255,255,255,.16); color: #fff; font-size: 12.5px; font-weight: 700; cursor: pointer; flex: none;
+}
+body.demo-active { padding-top: 44px; }
+
+/* --- 再訪時：点検の時期アラート --- */
+.stale-alert {
+  display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn);
+  border-radius: 14px; padding: 10px 14px; margin-top: 10px; font-size: 12.5px; font-weight: 700;
+}
+.stale-alert.visible { display: flex; }
+.stale-alert .stale-jump-btn {
+  min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--warn-border);
+  background: #fff; color: var(--warn); font-size: 12.5px; font-weight: 700; cursor: pointer; flex: none;
+}
+
+/* --- 上へ戻る --- */
+.back-to-top {
+  position: fixed; right: 16px; bottom: 18px; width: 48px; height: 48px; border-radius: 50%;
+  background: var(--accent); color: #fff; border: none; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+  font-size: 20px; line-height: 1; display: none; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 50;
+}
+.back-to-top.visible { display: flex; }
+
+/* --- 設定とデータ管理（本文セクションより格下げ） --- */
+.settings-eyebrow { font-size: 11.5px; color: var(--text-faint); font-weight: 700; letter-spacing: .04em; margin: 26px 4px 8px; }
+.settings-section h2 { font-size: 13px; color: var(--text-sub); }
+
+/* --- プロフィールタイル：横スワイプのヒント --- */
+.swipe-hint {
+  position: absolute; top: -2px; right: 2px; font-size: 10.5px; color: var(--text-faint);
+  background: var(--panel-bg); padding: 0 2px;
+}
 
 /* --- インポート（ドロップゾーン） --- */
 .dropzone {
@@ -228,7 +300,7 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
 
 @media (max-width: 480px) {
   .wrap { padding: 16px 10px 48px; }
-  section.panel { padding: 16px 16px; border-radius: 18px; }
+  .panel { padding: 16px 16px; border-radius: 18px; }
   .hero-card { width: 122px; }
   .hero-card .value { font-size: 20px; }
   .progress-label { min-width: 90px; }
@@ -237,58 +309,32 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
 </style>
 </head>
 <body>
+<div id="demo-banner" class="demo-banner">
+  <span>これはサンプルです（架空のデータ）</span>
+  <button type="button" id="demo-exit-btn" class="demo-exit-btn">自分のデータで点検する</button>
+</div>
 <div class="wrap">
   <header class="top">
     <h1>からだ点検</h1>
     <div class="sub">月に一度、からだの定期点検。</div>
-    <div class="sub">Appleヘルスケアの書き出しzipを、この画面の中だけで解析します。</div>
+    <div class="hero-copy">iPhoneのヘルスケアに溜まったデータから、歩き方・活動量・からだつきを100点満点で点検します。</div>
     <div id="saved-badge" class="saved-badge" style="display:none;">
       <span id="saved-badge-text"></span>
       <button type="button" id="reimport-btn" class="reimport-btn">新しいデータを取り込む</button>
     </div>
-  </header>
-
-  <div class="privacy-banner">
-    <strong>データはすべてこの端末の中で処理・保存されます。どこにも送信されません。</strong>
-    zipの解凍・集計・グラフ描画はすべてこのページのJavaScriptがブラウザ内で行い、サーバーへの送信は一切ありません（外部通信ゼロ）。
-  </div>
-
-  <section class="panel" id="profile-input-section">
-    <h2>わたしの情報</h2>
-    <div class="panel-sub">任意入力です。入れておくと点数の精度が上がります（この端末に保存され、次回も使われます）</div>
-    <div class="profile-form">
-      <div class="profile-field">
-        <label for="profile-age">年齢</label>
-        <div class="input-row">
-          <input type="number" id="profile-age" inputmode="numeric" min="5" max="120" placeholder="例：38">
-          <span class="unit-suffix">歳</span>
-        </div>
-        <div class="field-error" id="profile-age-error"></div>
-      </div>
-      <div class="profile-field">
-        <label for="profile-height">身長</label>
-        <div class="input-row">
-          <input type="number" id="profile-height" inputmode="decimal" min="100" max="250" step="0.1" placeholder="例：165">
-          <span class="unit-suffix">cm</span>
-        </div>
-        <div class="field-error" id="profile-height-error"></div>
-      </div>
-      <div class="profile-field">
-        <label for="profile-weight">体重（体重計データが無いときの手入力）</label>
-        <div class="input-row">
-          <input type="number" id="profile-weight" inputmode="decimal" min="20" max="300" step="0.1" placeholder="例：58.0">
-          <span class="unit-suffix">kg</span>
-        </div>
-        <div class="field-error" id="profile-weight-error"></div>
-      </div>
+    <div id="stale-alert" class="stale-alert">
+      <span>点検の時期です。新しいデータを取り込みましょう</span>
+      <button type="button" id="stale-jump-btn" class="stale-jump-btn">取り込みへ</button>
     </div>
-    <div class="profile-hint" id="profile-hint"></div>
-    <div class="profile-save-note" id="profile-save-note"></div>
-  </section>
+  </header>
 
   <section class="panel" id="import-section">
     <h2>データ取り込み</h2>
     <div class="panel-sub">iPhoneの「ヘルスケア」→プロフィール→「すべての健康データを書き出す」で作られたzipを選んでください</div>
+
+    <div class="privacy-banner">
+      <strong>データはすべてこの端末の中だけで処理・保存されます。どこにも送信されません。</strong>
+    </div>
 
     <div id="browser-warn" class="browser-warn" style="display:none;"></div>
 
@@ -298,12 +344,22 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
       <input type="file" id="file-input" accept=".zip,application/zip">
     </div>
 
-    <details class="import-help">
+    <button type="button" id="sample-btn" class="sample-btn">サンプルを見る（架空のデータで試す）</button>
+
+    <details class="import-help" id="import-help" open>
       <summary>書き出し手順</summary>
-      <div>
-        iPhoneの「ヘルスケア」アプリ→右上のプロフィールアイコン→一番下「すべての健康データを書き出す」→
-        共有シートからファイルに保存し、そのzipファイルをこの画面で選択してください。<br>
-        巨大なファイル（数百MB）でも、この画面の中だけで少しずつ処理します。処理中は画面を閉じないでください。
+      <ol>
+        <li>iPhoneの「ヘルスケア」アプリを開く</li>
+        <li>右上のプロフィールアイコンをタップ</li>
+        <li>下までスクロールして「すべての健康データを書き出す」をタップ</li>
+        <li>書き出しに数分かかることがあります（そのままお待ちください）</li>
+        <li>共有メニューから「"ファイル"に保存」を選ぶ</li>
+        <li>このページに戻り、上のボタンからそのzipを選ぶ</li>
+      </ol>
+      <div class="help-note">
+        PCで見ている場合は、iPhoneからAirDrop等でzipファイルをPCに送ってから選択してください。<br>
+        巨大なファイル（数百MB）でも、この画面の中だけで少しずつ処理します。処理中は画面を閉じないでください。<br>
+        zipの解凍・集計・グラフ描画はすべてこのページのJavaScriptがブラウザ内で行い、サーバーへの送信は一切ありません（外部通信ゼロ）。
       </div>
     </details>
 
@@ -314,10 +370,44 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
     <div id="import-status" class="import-status"></div>
   </section>
 
+  <details class="panel profile-details" id="profile-input-section">
+    <summary class="profile-summary">わたしの情報<span class="ps-note">任意：年齢・身長を入れると採点の精度が上がります</span></summary>
+    <div class="profile-body">
+      <div class="profile-form">
+        <div class="profile-field">
+          <label for="profile-age">年齢</label>
+          <div class="input-row">
+            <input type="number" id="profile-age" inputmode="numeric" min="5" max="120" placeholder="例：38">
+            <span class="unit-suffix">歳</span>
+          </div>
+          <div class="field-error" id="profile-age-error"></div>
+        </div>
+        <div class="profile-field">
+          <label for="profile-height">身長</label>
+          <div class="input-row">
+            <input type="number" id="profile-height" inputmode="decimal" min="100" max="250" step="0.1" placeholder="例：165">
+            <span class="unit-suffix">cm</span>
+          </div>
+          <div class="field-error" id="profile-height-error"></div>
+        </div>
+        <div class="profile-field">
+          <label for="profile-weight">体重（体重計データが無いときの手入力）</label>
+          <div class="input-row">
+            <input type="number" id="profile-weight" inputmode="decimal" min="20" max="300" step="0.1" placeholder="例：58.0">
+            <span class="unit-suffix">kg</span>
+          </div>
+          <div class="field-error" id="profile-weight-error"></div>
+        </div>
+      </div>
+      <div class="profile-hint" id="profile-hint"></div>
+      <div class="profile-save-note" id="profile-save-note"></div>
+    </div>
+  </details>
+
   <div id="report-root" class="hidden-section">
     <section class="panel">
       <h2><span class="num">01</span>総合判定</h2>
-      <div class="panel-sub">開いた瞬間にわかる、今の体の状態</div>
+      <div class="panel-sub">開いた瞬間にわかる、今の体の状態（100点に近いほど良好です）</div>
       <div class="headline" id="verdict-headline"></div>
       <div class="verdict-list" id="verdict-list"></div>
       <details class="score-details">
@@ -329,7 +419,10 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
     <section class="panel">
       <h2><span class="num">02</span>からだプロフィール</h2>
       <div class="panel-sub">直近の実測値と、一般的な目安との位置づけ</div>
-      <div class="hero-scroll"><div class="hero-grid" id="profile-grid"></div></div>
+      <div class="hero-scroll">
+        <div class="swipe-hint" id="swipe-hint">→ 横にスワイプで続き</div>
+        <div class="hero-grid" id="profile-grid"></div>
+      </div>
     </section>
 
     <section class="panel">
@@ -349,7 +442,7 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
     </section>
 
     <section class="panel">
-      <h2><span class="num">05</span>歩きの質</h2>
+      <h2>歩きの質</h2>
       <div class="panel-sub">左右非対称性・歩行速度・両脚支持時間の月中央値トレンド</div>
       <div class="chart-card">
         <div class="chart-title" id="asym-title"></div>
@@ -371,7 +464,7 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
     </section>
 
     <section class="panel">
-      <h2><span class="num">06</span>回復系・体組成</h2>
+      <h2>回復系・体組成</h2>
       <div class="panel-sub">体重・体脂肪率、および安静時心拍・HRV（記録が疎らな指標）</div>
       <div class="chart-card">
         <div class="chart-title" id="bodycomp-title"></div>
@@ -392,8 +485,9 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
       </div>
     </section>
 
-    <section class="panel">
-      <h2><span class="num">07</span>バックアップ・データ管理</h2>
+    <div class="settings-eyebrow">設定とデータ管理</div>
+    <section class="panel settings-section">
+      <h2>バックアップ・データ管理</h2>
       <div class="panel-sub">集計データ（生のzip/XMLは含まれません）の書き出し・読み込み・削除</div>
       <div class="backup-actions">
         <button type="button" id="backup-export-btn" class="backup-btn primary">バックアップを書き出す</button>
@@ -406,7 +500,9 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
     </section>
   </div>
 
-  <footer>karada-log webapp／ブラウザ内完結・外部送信なし</footer>
+  <button type="button" id="back-to-top" class="back-to-top" aria-label="上へ戻る" title="上へ戻る">↑</button>
+
+  <footer>からだ点検／ブラウザ内で完結・外部送信なし</footer>
 </div>
 
 <script>
@@ -1478,7 +1574,7 @@ function renderVerdicts(verdicts, headline) {
   const order = baseOrder.slice().sort((a, b) => (severityRank[verdicts[a].level] ?? 9) - (severityRank[verdicts[b].level] ?? 9));
   els.verdictList.innerHTML = order.map((key, i) => {
     const v = verdicts[key];
-    const scoreText = v.score != null ? `${v.score}<span class="v-score-unit">点</span>` : "－";
+    const scoreText = v.score != null ? `${v.score}<span class="v-score-unit"> / 100</span>` : "－";
     return `<div class="v-row ${v.level}">
       <span class="v-tag">${String(i + 1).padStart(2, "0")}</span>
       <span class="v-title">${v.title}</span>
@@ -1502,6 +1598,17 @@ function renderProfile(profile) {
     const noteHtml = t.note ? `<div class="tile-note">${t.note}</div>` : "";
     return `<div class="hero-card"><div class="label">${t.label}</div><div class="value">${valStr}<span class="unit">${t.unit}</span></div>${noteHtml}</div>`;
   }).join("");
+  showSwipeHintOnce();
+}
+let swipeHintDismissed = false;
+function showSwipeHintOnce() {
+  const hint = q("swipe-hint");
+  const grid = els.profileGrid;
+  if (!hint || !grid) return;
+  if (swipeHintDismissed) { hint.style.display = "none"; return; }
+  hint.style.display = "block";
+  const onScroll = () => { swipeHintDismissed = true; hint.style.display = "none"; };
+  grid.addEventListener("scroll", onScroll, { once: true, passive: true });
 }
 function renderFindings(findings) {
   const el = els.findings;
@@ -1561,14 +1668,26 @@ function renderReport(dailyMetrics, today, meta, profile) {
 
   document.getElementById("report-root").classList.remove("hidden-section");
 
+  renderSavedBadge(meta);
+}
+
+// 保存データバッジ＋30日超のときの「点検の時期です」アラート（デモ表示中は meta.importedAt が null になり両方非表示）
+function renderSavedBadge(meta) {
   const badge = q("saved-badge");
   const badgeText = q("saved-badge-text");
-  if (meta && meta.importedAt) {
-    const d = new Date(meta.importedAt);
-    const label = isNaN(d.getTime()) ? meta.importedAt : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    badgeText.textContent = `保存データ：${label}取り込み分${meta.sourceLabel ? "（" + meta.sourceLabel + "）" : ""}`;
-    badge.style.display = "flex";
+  const stale = q("stale-alert");
+  if (!meta || !meta.importedAt) {
+    badge.style.display = "none";
+    stale.classList.remove("visible");
+    return;
   }
+  const d = new Date(meta.importedAt);
+  const validDate = !isNaN(d.getTime());
+  const label = validDate ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : meta.importedAt;
+  const daysSince = validDate ? Math.floor((Date.now() - d.getTime()) / 86400000) : null;
+  badgeText.textContent = `保存データ：${label}取り込み分${daysSince != null ? `（${daysSince}日前）` : ""}${meta.sourceLabel ? "（" + meta.sourceLabel + "）" : ""}`;
+  badge.style.display = "flex";
+  stale.classList.toggle("visible", daysSince != null && daysSince > 30);
 }
 
 function setImportStatus(text, cls) {
@@ -1581,6 +1700,10 @@ function setProgress(pct, extra) {
   els.progressLabel.textContent = `${pct}%${extra ? " " + extra : ""}`;
 }
 function hideProgress() { els.progressWrap.classList.remove("active"); }
+function jumpToImport() {
+  q("import-section").classList.remove("hidden-section");
+  window.scrollTo({ top: q("import-section").offsetTop - 10, behavior: "smooth" });
+}
 
 async function processZipFile(file) {
   if (typeof DecompressionStream === "undefined") {
@@ -1625,6 +1748,7 @@ async function processZipFile(file) {
     }
     hideProgress();
     q("import-section").classList.add("hidden-section");
+    q("import-help").open = false;
   } catch (e) {
     setImportStatus(`取り込みに失敗しました：${e.message}`, "err");
     hideProgress();
@@ -1634,6 +1758,138 @@ async function processZipFile(file) {
 function setBackupStatus(text, cls) {
   els.backupStatus.textContent = text;
   els.backupStatus.className = "backup-status" + (cls ? " " + cls : "");
+}
+
+/* =========================================================================
+   PART E: サンプル（デモ）表示
+   架空のdailyMetricsを既存の集計・採点・グラフ描画パイプラインへそのまま流すだけで、
+   採点ロジック本体（classify*系）や保存処理（saveReport/saveProfile）には一切触れない。
+   IndexedDBへは書き込まない（renderReportはメモリ描画のみ。saveReportは呼ばない）。
+   ========================================================================= */
+function demoRand(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+function generateDemoDailyMetrics() {
+  const now = new Date();
+  const totalDays = 730; // 約2年分
+  const dm = Object.create(null);
+  const stepRows = [], distRows = [], energyRows = [], exerciseRows = [];
+  const asymRows = [], speedRows = [], steplenRows = [], dsupportRows = [], steadyRows = [];
+  const bodyMassRows = [], bodyFatRows = [];
+
+  for (let i = totalDays; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dateKey = localDateKey(d);
+    const dayIdx = totalDays - i; // 0=2年前 … totalDays=今日
+    const seasonal = Math.sin((dayIdx / 365) * Math.PI * 2) * 800;
+    const weekendBoost = (d.getDay() === 0 || d.getDay() === 6) ? 900 : 0;
+    const noise = (demoRand(dayIdx * 1.37) - 0.5) * 1400;
+    const recentDecline = i < 60 ? -(60 - i) * 45 : 0; // 直近2か月は緩やかな減少傾向
+    const steps = Math.max(1500, Math.round(8300 + seasonal + weekendBoost + noise + recentDecline));
+    stepRows.push([dateKey, steps, steps, steps, 1, "iPhone"]);
+    const dist = Math.round((steps / 1300) * 100) / 100;
+    distRows.push([dateKey, dist, dist, dist, 1, "iPhone"]);
+    const energy = Math.round(steps * 0.045);
+    energyRows.push([dateKey, energy, energy, energy, 1, "iPhone"]);
+    if (dayIdx % 3 === 0) {
+      const ex = Math.round(20 + demoRand(dayIdx * 2.1) * 25);
+      exerciseRows.push([dateKey, ex, ex, ex, 1, "iPhone"]);
+    }
+    if (d.getDay() % 2 === 0) { // Watch装着日を想定した間引き
+      const asym = Math.round((1.2 + demoRand(dayIdx * 3.3) * 1.0) * 100) / 100;
+      asymRows.push([dateKey, asym, asym, asym, 1, ""]);
+      const speed = Math.round((1.22 + (demoRand(dayIdx * 4.4) - 0.5) * 0.08) * 100) / 100;
+      speedRows.push([dateKey, speed, speed, speed, 1, ""]);
+      const steplen = Math.round(68 + (demoRand(dayIdx * 5.5) - 0.5) * 4);
+      steplenRows.push([dateKey, steplen, steplen, steplen, 1, ""]);
+      const dsupport = Math.round((26 + (demoRand(dayIdx * 6.6) - 0.5) * 3) * 10) / 10;
+      dsupportRows.push([dateKey, dsupport, dsupport, dsupport, 1, ""]);
+      const steady = Math.round((88 + (demoRand(dayIdx * 7.7) - 0.5) * 6) * 10) / 10;
+      steadyRows.push([dateKey, steady, steady, steady, 1, ""]);
+    }
+    if (dayIdx % 4 === 0) {
+      const weight = Math.round((61.5 + Math.sin(dayIdx / 200) * 0.8 + (demoRand(dayIdx * 8.8) - 0.5) * 0.6) * 10) / 10;
+      bodyMassRows.push([dateKey, weight, weight, weight, 1, ""]);
+    }
+    if (dayIdx % 14 === 0) {
+      const fat = Math.round((18.5 + (demoRand(dayIdx * 9.9) - 0.5) * 1.5) * 10) / 10;
+      bodyFatRows.push([dateKey, fat, fat, fat, 1, ""]);
+    }
+  }
+  dm.step_count = stepRows;
+  dm.distance_km = distRows;
+  dm.active_energy_kcal = energyRows;
+  dm.exercise_time_min = exerciseRows;
+  dm.walking_asymmetry_pct = asymRows;
+  dm.walking_speed_m_s = speedRows;
+  dm.walking_step_length_cm = steplenRows;
+  dm.walking_double_support_pct = dsupportRows;
+  dm.walking_steadiness_pct = steadyRows;
+  dm.body_mass_kg = bodyMassRows;
+  dm.body_fat_pct = bodyFatRows;
+
+  // 回復系（安静時心拍・HRV）：直近90日は高頻度、それ以前は間引いた疎らな計測
+  const rhrRows = [], hrvRows = [];
+  for (let i = totalDays; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dayIdx = totalDays - i;
+    const dense = i <= 90;
+    const include = dense ? (dayIdx % 2 === 0) : (dayIdx % 6 === 0);
+    if (!include) continue;
+    const dateKey = localDateKey(d);
+    const rhr = Math.round(54 + (demoRand(dayIdx * 11.1) - 0.5) * 8);
+    rhrRows.push([dateKey, rhr, rhr, rhr, 1, ""]);
+    const hrv = Math.round(52 + (demoRand(dayIdx * 12.2) - 0.5) * 14);
+    hrvRows.push([dateKey, hrv, hrv, hrv, 1, ""]);
+  }
+  dm.resting_heart_rate_bpm = rhrRows;
+  dm.hrv_sdnn_ms = hrvRows;
+
+  return dm;
+}
+
+let demoMode = false;
+let preDemoState = null;
+function enterDemoMode() {
+  if (demoMode) return;
+  preDemoState = {
+    reportData: currentReportData,
+    importSectionHidden: q("import-section").classList.contains("hidden-section"),
+  };
+  demoMode = true;
+  const dm = generateDemoDailyMetrics();
+  const today = localDateKey(new Date());
+  // 身長・年齢が未入力だと体組成が採点不能のままになるため、デモ表示だけは仮のプロフィールで見せる
+  // （保存はしない＝currentProfileやIndexedDBには一切触れない）。実データが入力済みならそれを使う。
+  const demoProfile = (currentProfile && currentProfile.height != null && currentProfile.age != null)
+    ? currentProfile
+    : normalizeProfile({ age: 42, height: 165, weight: null, weightDate: null });
+  renderReport(dm, today, { importedAt: null, sourceLabel: null }, demoProfile);
+  q("import-section").classList.add("hidden-section");
+  q("saved-badge").style.display = "none";
+  document.body.classList.add("demo-active");
+  q("demo-banner").classList.add("visible");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function exitDemoMode() {
+  if (!demoMode) return;
+  demoMode = false;
+  document.body.classList.remove("demo-active");
+  q("demo-banner").classList.remove("visible");
+  const prev = preDemoState;
+  preDemoState = null;
+  if (prev && prev.reportData) {
+    renderReport(prev.reportData.dailyMetrics, prev.reportData.today, prev.reportData.meta, prev.reportData.profile);
+    q("import-section").classList.toggle("hidden-section", prev.importSectionHidden);
+  } else {
+    currentReportData = null;
+    document.getElementById("report-root").classList.add("hidden-section");
+    q("import-section").classList.remove("hidden-section");
+    q("saved-badge").style.display = "none";
+  }
 }
 
 /* --- わたしの情報（プロフィール入力）の検証・保存・再描画 --- */
@@ -1721,6 +1977,7 @@ function wireUi() {
   els.profileWeightError = q("profile-weight-error");
   els.profileHint = q("profile-hint");
   els.profileSaveNote = q("profile-save-note");
+  els.dzTitle = q("dz-title");
 
   els.profileAge.addEventListener("input", handleProfileInputChange);
   els.profileHeight.addEventListener("input", handleProfileInputChange);
@@ -1730,6 +1987,10 @@ function wireUi() {
     els.browserWarn.style.display = "block";
     els.browserWarn.textContent = "お使いのブラウザは非対応です（ZIP解凍APIが利用できません）。Chrome または Safari の最新版でお試しください。";
   }
+
+  // タッチデバイスでは「ドロップ」操作ができないため文言を変える
+  const isTouchDevice = window.matchMedia && window.matchMedia("(hover: none)").matches;
+  els.dzTitle.textContent = isTouchDevice ? "zipファイルを選ぶ" : "ここにzipをドロップ、またはクリックして選択";
 
   els.dropzone.addEventListener("click", () => els.fileInput.click());
   els.dropzone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") els.fileInput.click(); });
@@ -1746,10 +2007,16 @@ function wireUi() {
     if (f) processZipFile(f);
   });
 
-  q("reimport-btn").addEventListener("click", () => {
-    q("import-section").classList.remove("hidden-section");
-    window.scrollTo({ top: q("import-section").offsetTop - 10, behavior: "smooth" });
-  });
+  q("reimport-btn").addEventListener("click", () => jumpToImport());
+  q("stale-jump-btn").addEventListener("click", () => jumpToImport());
+  q("sample-btn").addEventListener("click", () => enterDemoMode());
+  q("demo-exit-btn").addEventListener("click", () => exitDemoMode());
+
+  const backToTop = q("back-to-top");
+  window.addEventListener("scroll", () => {
+    backToTop.classList.toggle("visible", window.scrollY > 200);
+  }, { passive: true });
+  backToTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 
   q("backup-export-btn").addEventListener("click", async () => {
     try {
@@ -1786,6 +2053,7 @@ function wireUi() {
       }
       renderReport(parsed.dailyMetrics, parsed.today, { importedAt: parsed.importedAt, sourceLabel: parsed.sourceLabel }, currentProfile);
       q("import-section").classList.add("hidden-section");
+      q("import-help").open = false;
       setBackupStatus("バックアップから復元しました。", "ok");
     } catch (e) {
       setBackupStatus(`読み込みに失敗しました：${e.message}`, "err");
@@ -1801,7 +2069,9 @@ function wireUi() {
       currentReportData = null;
       document.getElementById("report-root").classList.add("hidden-section");
       q("saved-badge").style.display = "none";
+      q("stale-alert").classList.remove("visible");
       q("import-section").classList.remove("hidden-section");
+      q("import-help").open = true; // 初回相当の状態に戻るため手順を展開
       setBackupStatus("保存データを消しました。", "ok");
     } catch (e) {
       setBackupStatus(`削除に失敗しました：${e.message}`, "err");
@@ -1831,6 +2101,7 @@ async function initApp() {
     if (stored) {
       renderReport(stored.dailyMetrics, stored.today, { importedAt: stored.importedAt, sourceLabel: stored.sourceLabel }, currentProfile);
       q("import-section").classList.add("hidden-section");
+      q("import-help").open = false; // 再訪時は手順を畳んでおく（初回のみ展開）
     }
   } catch (e) {
     // IndexedDB未対応・初回起動時のエラーは致命的ではない。取り込みUIをそのまま表示する。
