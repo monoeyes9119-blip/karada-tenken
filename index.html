@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>からだ点検</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#faf4e9">
+<style>
+:root {
+  --bg: #fbf5ec;
+  --panel-bg: #fffdf9;
+  --text-main: #3a2f26;
+  --text-sub: #7d6e5d;
+  --text-faint: #96876f;
+  --border: #efe2cd;
+  --accent: #e07a58;
+  --accent-text: #ad4325;
+  --accent-soft: #f3d9c8;
+  --good: #4f6b46;
+  --watch: #a9762c;
+  --warn: #ad4325;
+  --warn-bg: #fbe9e0;
+  --warn-border: #f0c9b6;
+  --gray-bg: #f2ece1;
+  --grid: #ecdcc7;
+  --line2: #ad4325;
+  --privacy-bg: #ecf2e7;
+  --privacy-border: #d7e4cf;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+header.top { margin-bottom: 18px; }
+header.top h1 { font-size: 23px; margin: 0 0 6px; font-weight: 700; }
+header.top .sub { color: var(--text-sub); font-size: 12.5px; }
+.saved-badge {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--text-sub);
+}
+.saved-badge .reimport-btn {
+  border: 1px solid var(--border); background: var(--panel-bg); color: var(--text-main);
+  border-radius: 999px; padding: 6px 14px; font-size: 12.5px; cursor: pointer; min-height: 32px;
+}
+
+.privacy-banner {
+  background: var(--privacy-bg);
+  border: 1px solid var(--privacy-border);
+  border-radius: 18px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--text-main);
+  margin-bottom: 18px;
+  line-height: 1.75;
+}
+.privacy-banner strong { color: var(--good); }
+
+section.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 20px 22px;
+  margin-bottom: 18px;
+  box-shadow: 0 6px 18px rgba(173, 67, 37, 0.05);
+}
+section.panel h2 {
+  font-size: 16px;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+section.panel h2 .num {
+  font-size: 12px; color: var(--accent-text); font-weight: 700; letter-spacing: .04em; flex: none;
+}
+section.panel .panel-sub { font-size: 12.5px; color: var(--text-sub); margin-bottom: 16px; }
+
+/* --- インポート（ドロップゾーン） --- */
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 18px;
+  padding: 30px 16px;
+  text-align: center;
+  color: var(--text-sub);
+  font-size: 13px;
+  cursor: pointer;
+  background: var(--bg);
+  transition: border-color .15s ease, background .15s ease;
+}
+.dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone .dz-title { font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
+.dropzone input[type="file"] { display: none; }
+.import-help { margin-top: 12px; font-size: 12.5px; color: var(--text-sub); }
+.import-help summary { cursor: pointer; color: var(--accent-text); font-weight: 600; }
+.import-help div { margin-top: 8px; line-height: 1.75; }
+
+.progress-wrap { display: none; align-items: center; gap: 10px; margin-top: 14px; }
+.progress-wrap.active { display: flex; }
+.progress-track { flex: 1 1 auto; height: 8px; border-radius: 4px; background: var(--gray-bg); overflow: hidden; }
+.progress-bar { height: 100%; width: 0%; background: var(--accent); transition: width .15s ease; }
+.progress-label { font-size: 12px; color: var(--text-sub); min-width: 120px; text-align: right; white-space: nowrap; }
+
+.import-status { font-size: 12.5px; margin-top: 10px; color: var(--text-sub); line-height: 1.7; }
+.import-status.ok { color: var(--good); }
+.import-status.err { color: var(--warn); font-weight: 600; }
+.import-status:empty { display: none; }
+
+.browser-warn {
+  background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 14px;
+  padding: 10px 14px; font-size: 12.5px; color: var(--text-main); margin-bottom: 14px;
+}
+
+/* --- わたしの情報（プロフィール入力） --- */
+.profile-form { display: flex; flex-direction: column; gap: 16px; max-width: 320px; }
+.profile-field label { display: block; font-size: 12.5px; color: var(--text-sub); margin-bottom: 6px; font-weight: 600; }
+.profile-field .input-row { display: flex; align-items: center; gap: 8px; }
+.profile-field input[type="number"] {
+  flex: 1 1 auto; min-height: 44px; font-size: 16px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+.profile-field input[type="number"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.profile-field input.invalid { border-color: var(--warn); }
+.profile-field .unit-suffix { font-size: 13px; color: var(--text-sub); flex: none; }
+.field-error { font-size: 11.5px; color: var(--warn); margin-top: 4px; min-height: 14px; }
+.profile-hint { font-size: 12px; color: var(--text-faint); margin-top: 14px; }
+.profile-save-note { font-size: 11.5px; color: var(--good); margin-top: 6px; min-height: 14px; }
+
+/* --- 総合判定（索引風の横一列リスト） --- */
+.verdict-list { border-top: 1px solid var(--border); }
+.v-row { display: flex; align-items: center; gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--border); }
+.v-row .v-tag { font-size: 11px; color: var(--text-faint); width: 22px; flex: none; font-weight: 700; }
+.v-row .v-title { font-size: 14px; font-weight: 700; flex: 1 1 auto; color: var(--text-main); }
+.v-row .v-score { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; flex: none; min-width: 46px; text-align: right; }
+.v-row .v-score .v-score-unit { font-size: 11px; font-weight: 400; color: var(--text-sub); margin-left: 1px; }
+.v-row .v-status { display: flex; align-items: center; gap: 6px; flex: none; font-size: 12.5px; font-weight: 700; min-width: 82px; justify-content: flex-end; }
+.v-row .v-symbol { font-size: 14px; }
+.v-row.good .v-score, .v-row.good .v-status { color: var(--good); }
+.v-row.watch .v-score, .v-row.watch .v-status { color: var(--watch); }
+.v-row.warn .v-score, .v-row.warn .v-status { color: var(--warn); }
+.v-row.gray .v-score, .v-row.gray .v-status { color: var(--text-faint); }
+
+.headline {
+  font-size: 14px; font-weight: 600; color: var(--text-main); background: var(--accent-soft);
+  padding: 14px 18px; border-radius: 16px; margin-bottom: 16px; line-height: 1.7;
+}
+
+.score-details { margin-top: 16px; font-size: 12.5px; color: var(--text-sub); }
+.score-details summary { cursor: pointer; color: var(--accent-text); font-weight: 600; }
+.score-details .breakdown { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.score-details .breakdown h4 { font-size: 12.5px; margin: 10px 0 4px; color: var(--text-main); }
+.score-details .breakdown h4:first-child { margin-top: 0; }
+.score-details .breakdown p { margin: 2px 0; line-height: 1.7; }
+.score-details .disclaimer { font-size: 11px; color: var(--text-faint); font-style: italic; margin-top: 10px; }
+
+/* --- からだプロフィール（1列横スクロール） --- */
+.hero-scroll { position: relative; }
+.hero-grid {
+  display: flex; flex-wrap: nowrap; gap: 10px; overflow-x: auto; padding-bottom: 4px;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+}
+.hero-grid::-webkit-scrollbar { height: 5px; }
+.hero-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.hero-scroll::after {
+  content: ""; position: absolute; top: 0; right: 0; bottom: 4px; width: 28px; pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--panel-bg));
+}
+.hero-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 13px 15px;
+  flex: 0 0 auto;
+  width: 132px;
+  scroll-snap-align: start;
+}
+.hero-card .label { font-size: 11px; color: var(--text-sub); margin-bottom: 6px; }
+.hero-card .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hero-card .unit { font-size: 12px; color: var(--text-sub); margin-left: 2px; font-weight: 400; }
+.hero-card .tile-note { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; line-height: 1.5; }
+
+/* --- 所見（ルールベース自動生成） --- */
+.findings { font-size: 13.5px; color: var(--text-main); background: var(--bg); border-radius: 16px; padding: 16px 18px; }
+.findings.empty { color: var(--text-faint); font-style: normal; }
+.findings p { margin: 0 0 10px; }
+.findings ul { margin: 0 0 10px; padding-left: 20px; }
+.findings li { margin: 6px 0; }
+.findings .disclaimer { font-size: 11px; color: var(--text-faint); font-style: italic; margin: 0; }
+
+/* --- チャート --- */
+.chart-card { margin-bottom: 20px; }
+.chart-card:last-child { margin-bottom: 0; }
+.chart-card .chart-title { font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 2px; }
+.chart-card .chart-sub { font-size: 11.5px; color: var(--text-sub); margin-bottom: 8px; }
+canvas { width: 100%; display: block; }
+.note-sparse { font-size: 11px; color: var(--text-faint); margin-top: 4px; }
+.sub-chart-label { font-size: 11px; color: var(--text-sub); margin: 10px 0 2px; }
+
+/* --- バックアップ・データ管理 --- */
+.backup-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.backup-btn {
+  min-height: 44px; padding: 0 18px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--bg); color: var(--text-main); font-size: 13px; cursor: pointer; font-weight: 600;
+}
+.backup-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.backup-btn.danger { color: var(--warn); border-color: var(--warn-border); background: var(--warn-bg); }
+.backup-btn:disabled { opacity: .5; cursor: not-allowed; }
+.ios-tip { margin-top: 10px; font-size: 12px; color: var(--text-sub); line-height: 1.75; }
+.backup-status { font-size: 12px; margin-top: 8px; color: var(--text-sub); }
+.backup-status.ok { color: var(--good); }
+.backup-status.err { color: var(--warn); }
+.backup-status:empty { display: none; }
+input[type="file"].hidden-file { display: none; }
+
+.hidden-section { display: none; }
+
+footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin-top: 30px; }
+
+@media (max-width: 480px) {
+  .wrap { padding: 16px 10px 48px; }
+  section.panel { padding: 16px 16px; border-radius: 18px; }
+  .hero-card { width: 122px; }
+  .hero-card .value { font-size: 20px; }
+  .progress-label { min-width: 90px; }
+  .v-row .v-status { min-width: 68px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>からだ点検</h1>
+    <div class="sub">月に一度、からだの定期点検。</div>
+    <div class="sub">Appleヘルスケアの書き出しzipを、この画面の中だけで解析します。</div>
+    <div id="saved-badge" class="saved-badge" style="display:none;">
+      <span id="saved-badge-text"></span>
+      <button type="button" id="reimport-btn" class="reimport-btn">新しいデータを取り込む</button>
+    </div>
+  </header>
+
+  <div class="privacy-banner">
+    <strong>データはすべてこの端末の中で処理・保存されます。どこにも送信されません。</strong>
+    zipの解凍・集計・グラフ描画はすべてこのページのJavaScriptがブラウザ内で行い、サーバーへの送信は一切ありません（外部通信ゼロ）。
+  </div>
+
+  <section class="panel" id="profile-input-section">
+    <h2>わたしの情報</h2>
+    <div class="panel-sub">任意入力です。入れておくと点数の精度が上がります（この端末に保存され、次回も使われます）</div>
+    <div class="profile-form">
+      <div class="profile-field">
+        <label for="profile-age">年齢</label>
+        <div class="input-row">
+          <input type="number" id="profile-age" inputmode="numeric" min="5" max="120" placeholder="例：38">
+          <span class="unit-suffix">歳</span>
+        </div>
+        <div class="field-error" id="profile-age-error"></div>
+      </div>
+      <div class="profile-field">
+        <label for="profile-height">身長</label>
+        <div class="input-row">
+          <input type="number" id="profile-height" inputmode="decimal" min="100" max="250" step="0.1" placeholder="例：165">
+          <span class="unit-suffix">cm</span>
+        </div>
+        <div class="field-error" id="profile-height-error"></div>
+      </div>
+      <div class="profile-field">
+        <label for="profile-weight">体重（体重計データが無いときの手入力）</label>
+        <div class="input-row">
+          <input type="number" id="profile-weight" inputmode="decimal" min="20" max="300" step="0.1" placeholder="例：58.0">
+          <span class="unit-suffix">kg</span>
+        </div>
+        <div class="field-error" id="profile-weight-error"></div>
+      </div>
+    </div>
+    <div class="profile-hint" id="profile-hint"></div>
+    <div class="profile-save-note" id="profile-save-note"></div>
+  </section>
+
+  <section class="panel" id="import-section">
+    <h2>データ取り込み</h2>
+    <div class="panel-sub">iPhoneの「ヘルスケア」→プロフィール→「すべての健康データを書き出す」で作られたzipを選んでください</div>
+
+    <div id="browser-warn" class="browser-warn" style="display:none;"></div>
+
+    <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="zipファイルを選択またはドロップ">
+      <div class="dz-title" id="dz-title">ここにzipをドロップ、またはクリックして選択</div>
+      <div id="dz-filename"></div>
+      <input type="file" id="file-input" accept=".zip,application/zip">
+    </div>
+
+    <details class="import-help">
+      <summary>書き出し手順</summary>
+      <div>
+        iPhoneの「ヘルスケア」アプリ→右上のプロフィールアイコン→一番下「すべての健康データを書き出す」→
+        共有シートからファイルに保存し、そのzipファイルをこの画面で選択してください。<br>
+        巨大なファイル（数百MB）でも、この画面の中だけで少しずつ処理します。処理中は画面を閉じないでください。
+      </div>
+    </details>
+
+    <div id="progress-wrap" class="progress-wrap">
+      <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+      <div id="progress-label" class="progress-label">0%</div>
+    </div>
+    <div id="import-status" class="import-status"></div>
+  </section>
+
+  <div id="report-root" class="hidden-section">
+    <section class="panel">
+      <h2><span class="num">01</span>総合判定</h2>
+      <div class="panel-sub">開いた瞬間にわかる、今の体の状態</div>
+      <div class="headline" id="verdict-headline"></div>
+      <div class="verdict-list" id="verdict-list"></div>
+      <details class="score-details">
+        <summary>点数の根拠を見る</summary>
+        <div class="breakdown" id="score-breakdown"></div>
+      </details>
+    </section>
+
+    <section class="panel">
+      <h2><span class="num">02</span>からだプロフィール</h2>
+      <div class="panel-sub">直近の実測値と、一般的な目安との位置づけ</div>
+      <div class="hero-scroll"><div class="hero-grid" id="profile-grid"></div></div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="num">03</span>今月の所見</h2>
+      <div class="panel-sub">ルールベースで自動生成（判定結果と統計値からのテンプレート組み立て）</div>
+      <div id="findings" class="findings empty">所見は未生成</div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="num">04</span>活動量</h2>
+      <div class="panel-sub">歩数の月中央値トレンド</div>
+      <div class="chart-card">
+        <div class="chart-title" id="steps-title"></div>
+        <div class="chart-sub" id="steps-sub"></div>
+        <canvas id="chart-steps"></canvas>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="num">05</span>歩きの質</h2>
+      <div class="panel-sub">左右非対称性・歩行速度・両脚支持時間の月中央値トレンド</div>
+      <div class="chart-card">
+        <div class="chart-title" id="asym-title"></div>
+        <div class="chart-sub" id="asym-sub"></div>
+        <canvas id="chart-asym"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title" id="speed-title"></div>
+        <div class="chart-sub" id="speed-sub"></div>
+        <canvas id="chart-speed"></canvas>
+        <div class="sub-chart-label">歩幅（3か月移動中央値, cm）</div>
+        <canvas id="chart-steplen"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title" id="dsupport-title"></div>
+        <div class="chart-sub" id="dsupport-sub"></div>
+        <canvas id="chart-dsupport"></canvas>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="num">06</span>回復系・体組成</h2>
+      <div class="panel-sub">体重・体脂肪率、および安静時心拍・HRV（記録が疎らな指標）</div>
+      <div class="chart-card">
+        <div class="chart-title" id="bodycomp-title"></div>
+        <div class="chart-sub" id="bodycomp-sub"></div>
+        <div class="sub-chart-label">体重（kg）</div>
+        <canvas id="chart-weight"></canvas>
+        <div class="sub-chart-label">体脂肪率（%）</div>
+        <canvas id="chart-bodyfat"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title" id="recovery-title"></div>
+        <div class="chart-sub" id="recovery-sub"></div>
+        <div class="sub-chart-label">安静時心拍（bpm）目安40〜80</div>
+        <canvas id="chart-rhr"></canvas>
+        <div class="sub-chart-label">HRV（ms）</div>
+        <canvas id="chart-hrv"></canvas>
+        <div class="note-sparse">計測日が少ないため点が疎らなのは正常です</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="num">07</span>バックアップ・データ管理</h2>
+      <div class="panel-sub">集計データ（生のzip/XMLは含まれません）の書き出し・読み込み・削除</div>
+      <div class="backup-actions">
+        <button type="button" id="backup-export-btn" class="backup-btn primary">バックアップを書き出す</button>
+        <button type="button" id="backup-import-btn" class="backup-btn">バックアップを読み込む</button>
+        <input type="file" id="backup-file-input" class="hidden-file" accept=".json,application/json">
+        <button type="button" id="delete-data-btn" class="backup-btn danger">保存データを消す</button>
+      </div>
+      <div class="ios-tip">iOS Safariは端末のストレージ状況によって保存データを消してしまうことがあります。ホーム画面に追加して使うと保存が消えにくくなります（共有ボタン→「ホーム画面に追加」）。定期的に「バックアップを書き出す」でJSONファイルを保存しておくことをおすすめします。</div>
+      <div id="backup-status" class="backup-status"></div>
+    </section>
+  </div>
+
+  <footer>karada-log webapp／ブラウザ内完結・外部送信なし</footer>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   PART A: core.js — export.xmlの取り込み・集計・判定ロジック
+   （/Users/akira/tools/karada-log/build.py を移植。差分はコード中に明記）
+   ========================================================================= */
+
+const ZIP_EOCD_SIG = 0x06054b50;
+const ZIP_CDR_SIG = 0x02014b50;
+const ZIP_LFH_SIG = 0x04034b50;
+
+async function zipFindEocd(file) {
+  const size = file.size;
+  const maxCommentSize = 65535;
+  const searchSize = Math.min(size, maxCommentSize + 22);
+  const tailBlob = file.slice(size - searchSize, size);
+  const tailBuf = new Uint8Array(await tailBlob.arrayBuffer());
+  for (let i = tailBuf.length - 22; i >= 0; i--) {
+    if (tailBuf[i] === 0x50 && tailBuf[i + 1] === 0x4b && tailBuf[i + 2] === 0x05 && tailBuf[i + 3] === 0x06) {
+      const dv = new DataView(tailBuf.buffer, tailBuf.byteOffset + i, 22);
+      if (dv.getUint32(0, true) !== ZIP_EOCD_SIG) continue;
+      const entryCount = dv.getUint16(10, true);
+      const cdSize = dv.getUint32(12, true);
+      const cdOffset = dv.getUint32(16, true);
+      if (cdOffset === 0xffffffff || cdSize === 0xffffffff || entryCount === 0xffff) {
+        throw new Error("ZIP64形式のZIPは非対応です（このアプリの想定より大きいエクスポート）。");
+      }
+      return { cdOffset, cdSize, entryCount };
+    }
+  }
+  throw new Error("ZIPの終端レコード(EOCD)が見つかりませんでした。壊れたファイル、またはzip以外の可能性があります。");
+}
+
+async function zipFindEntry(file, entryNameSuffix) {
+  const eocd = await zipFindEocd(file);
+  const cdBlob = file.slice(eocd.cdOffset, eocd.cdOffset + eocd.cdSize);
+  const cdBuf = new Uint8Array(await cdBlob.arrayBuffer());
+  const decoder = new TextDecoder("utf-8");
+  let pos = 0;
+  for (let i = 0; i < eocd.entryCount; i++) {
+    if (pos + 46 > cdBuf.length) throw new Error("中央ディレクトリの読み取り範囲が不正です。");
+    const dv = new DataView(cdBuf.buffer, cdBuf.byteOffset + pos, 46);
+    if (dv.getUint32(0, true) !== ZIP_CDR_SIG) {
+      throw new Error("中央ディレクトリレコードの形式が不正です。");
+    }
+    const compressionMethod = dv.getUint16(10, true);
+    const compressedSize = dv.getUint32(20, true);
+    const uncompressedSize = dv.getUint32(24, true);
+    const fileNameLen = dv.getUint16(28, true);
+    const extraLen = dv.getUint16(30, true);
+    const commentLen = dv.getUint16(32, true);
+    const localHeaderOffset = dv.getUint32(42, true);
+    const nameBytes = cdBuf.subarray(pos + 46, pos + 46 + fileNameLen);
+    const name = decoder.decode(nameBytes);
+    if (name === entryNameSuffix || name.endsWith("/" + entryNameSuffix)) {
+      if (compressedSize === 0xffffffff || uncompressedSize === 0xffffffff || localHeaderOffset === 0xffffffff) {
+        throw new Error("ZIP64エントリのため非対応です。");
+      }
+      return { name, compressionMethod, compressedSize, uncompressedSize, localHeaderOffset };
+    }
+    pos += 46 + fileNameLen + extraLen + commentLen;
+  }
+  return null;
+}
+
+async function zipEntryStream(file, entry) {
+  const localHeaderBlob = file.slice(entry.localHeaderOffset, entry.localHeaderOffset + 30);
+  const localHeaderBuf = new Uint8Array(await localHeaderBlob.arrayBuffer());
+  if (localHeaderBuf.length < 30) throw new Error("ローカルファイルヘッダの読み取りに失敗しました。");
+  const dv = new DataView(localHeaderBuf.buffer, localHeaderBuf.byteOffset, 30);
+  if (dv.getUint32(0, true) !== ZIP_LFH_SIG) {
+    throw new Error("ローカルファイルヘッダの形式が不正です。");
+  }
+  const nameLen = dv.getUint16(26, true);
+  const extraLen = dv.getUint16(28, true);
+  const dataOffset = entry.localHeaderOffset + 30 + nameLen + extraLen;
+  const dataBlob = file.slice(dataOffset, dataOffset + entry.compressedSize);
+
+  if (entry.compressionMethod === 0) {
+    return dataBlob.stream();
+  }
+  if (entry.compressionMethod === 8) {
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("お使いのブラウザは非対応です（ZIP解凍APIが利用できません。Chrome/Safariの最新版でお試しください）。");
+    }
+    return dataBlob.stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  }
+  throw new Error(`未対応の圧縮方式です（method=${entry.compressionMethod}）。`);
+}
+
+const RECORD_TAG_RE = /<Record\b([^>]*)>/g;
+const ATTR_RE = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)="([^"]*)"/g;
+
+function xmlUnescape(s) {
+  if (s.indexOf("&") === -1) return s;
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+}
+function parseAttrs(attrString) {
+  const out = {};
+  ATTR_RE.lastIndex = 0;
+  let m;
+  while ((m = ATTR_RE.exec(attrString)) !== null) out[m[1]] = xmlUnescape(m[2]);
+  return out;
+}
+
+const APPLE_DATE_RE = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) ([+-]\d{2})(\d{2})$/;
+function parseAppleDate(s) {
+  if (!s) return null;
+  const m = APPLE_DATE_RE.exec(s);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, se, offH, offM] = m;
+  const offHoursNum = parseInt(offH, 10);
+  const offMinutesNum = parseInt(offM, 10);
+  const totalOffsetMin = (offHoursNum < 0 ? -1 : 1) * (Math.abs(offHoursNum) * 60 + offMinutesNum);
+  const utcMs = Date.UTC(+y, +mo - 1, +d, +h, +mi, +se) - totalOffsetMin * 60000;
+  return new Date(utcMs);
+}
+// 端末のローカルタイムゾーンで日付丸め（build.pyはJST固定だが、本アプリは仕様どおり
+// 「端末のローカルタイムゾーン」を使う。JST機で使う限りbuild.py版と一致する）。
+function localDateKey(dateObj) {
+  const y = dateObj.getFullYear();
+  const mo = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const d = String(dateObj.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${d}`;
+}
+
+const TYPE_MAP = {
+  HKQuantityTypeIdentifierStepCount: ["step_count", "sum", true],
+  HKQuantityTypeIdentifierDistanceWalkingRunning: ["distance_km", "sum", true],
+  HKQuantityTypeIdentifierActiveEnergyBurned: ["active_energy_kcal", "sum", true],
+  HKQuantityTypeIdentifierAppleExerciseTime: ["exercise_time_min", "sum", false],
+  HKQuantityTypeIdentifierWalkingAsymmetryPercentage: ["walking_asymmetry_pct", "avg", false],
+  HKQuantityTypeIdentifierWalkingSpeed: ["walking_speed_m_s", "avg", false],
+  HKQuantityTypeIdentifierWalkingStepLength: ["walking_step_length_cm", "avg", false],
+  HKQuantityTypeIdentifierWalkingDoubleSupportPercentage: ["walking_double_support_pct", "avg", false],
+  HKQuantityTypeIdentifierAppleWalkingSteadiness: ["walking_steadiness_pct", "avg", false],
+  HKQuantityTypeIdentifierStairAscentSpeed: ["stair_ascent_speed", "avg", false],
+  HKQuantityTypeIdentifierStairDescentSpeed: ["stair_descent_speed", "avg", false],
+  HKQuantityTypeIdentifierHeartRate: ["heart_rate_bpm", "avg", false],
+  HKQuantityTypeIdentifierRestingHeartRate: ["resting_heart_rate_bpm", "avg", false],
+  HKQuantityTypeIdentifierHeartRateVariabilitySDNN: ["hrv_sdnn_ms", "avg", false],
+  HKQuantityTypeIdentifierBodyMass: ["body_mass_kg", "avg", false],
+  HKQuantityTypeIdentifierBodyFatPercentage: ["body_fat_pct", "avg", false],
+};
+const PERCENT_METRICS = new Set(["walking_asymmetry_pct", "walking_double_support_pct", "walking_steadiness_pct", "body_fat_pct"]);
+
+function sourceTier(sourceName) {
+  if (!sourceName) return 2;
+  if (sourceName.includes("Watch")) return 0;
+  if (sourceName.includes("iPhone")) return 1;
+  return 2; // 「その他」に一般化（build.pyのMi Fitness固有名は採用しない＝タスク仕様どおりの一般化）
+}
+const TIER_LABELS = { 0: "Watch", 1: "iPhone", 2: "Other" };
+
+function normalizeValue(metric, rawValue, unit) {
+  if (PERCENT_METRICS.has(metric)) return { value: rawValue * 100, unit: "%" }; // HealthKitの0-1比率→真の%
+  if (metric === "walking_speed_m_s") {
+    const u = (unit || "").toLowerCase();
+    if (u.includes("km")) return { value: rawValue / 3.6, unit: "m/s" }; // unit属性を見て判定（km/hr→m/s）
+    return { value: rawValue, unit: unit || "m/s" };
+  }
+  return { value: rawValue, unit: unit };
+}
+
+function createAggregator() {
+  return {
+    dedup: Object.create(null),
+    avg: Object.create(null),
+    recordCount: 0,
+    skipped: 0,
+    ingest(attrString) {
+      const attrs = parseAttrs(attrString);
+      const rtype = attrs.type;
+      if (!rtype) return;
+      const mapping = TYPE_MAP[rtype];
+      if (!mapping) return; // 睡眠等、現行ダッシュボードが表示に使わない型はスコープ外（YAGNI。build.pyは取り込むが未使用）
+      const startDt = parseAppleDate(attrs.startDate);
+      if (!startDt) { this.skipped++; return; }
+      const rawVal = parseFloat(attrs.value);
+      if (Number.isNaN(rawVal)) { this.skipped++; return; }
+      const dateKey = localDateKey(startDt);
+      const [metric, , dedup] = mapping;
+      const { value } = normalizeValue(metric, rawVal, attrs.unit);
+      const sourceName = attrs.sourceName || "";
+      if (dedup) {
+        const byDate = this.dedup[metric] || (this.dedup[metric] = Object.create(null));
+        const byTier = byDate[dateKey] || (byDate[dateKey] = Object.create(null));
+        const tier = sourceTier(sourceName);
+        const acc = byTier[tier] || (byTier[tier] = { sum: 0, count: 0, min: Infinity, max: -Infinity });
+        acc.sum += value; acc.count += 1;
+        if (value < acc.min) acc.min = value;
+        if (value > acc.max) acc.max = value;
+      } else {
+        const byDate = this.avg[metric] || (this.avg[metric] = Object.create(null));
+        const acc = byDate[dateKey] || (byDate[dateKey] = { sum: 0, count: 0, min: Infinity, max: -Infinity, sources: new Set() });
+        acc.sum += value; acc.count += 1;
+        if (value < acc.min) acc.min = value;
+        if (value > acc.max) acc.max = value;
+        if (sourceName) acc.sources.add(sourceName);
+      }
+      this.recordCount += 1;
+    },
+    finalize() {
+      const dailyMetrics = Object.create(null);
+      for (const metric of Object.keys(this.dedup)) {
+        const byDate = this.dedup[metric];
+        const rows = [];
+        for (const date of Object.keys(byDate)) {
+          const tiers = byDate[date];
+          const minTier = Math.min(...Object.keys(tiers).map(Number));
+          const acc = tiers[minTier];
+          rows.push([date, acc.sum, acc.min, acc.max, acc.count, TIER_LABELS[minTier] || "Other"]);
+        }
+        rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+        dailyMetrics[metric] = rows;
+      }
+      for (const metric of Object.keys(this.avg)) {
+        const byDate = this.avg[metric];
+        const rows = [];
+        for (const date of Object.keys(byDate)) {
+          const acc = byDate[date];
+          const srcs = Array.from(acc.sources).sort().join(",").slice(0, 80);
+          rows.push([date, acc.sum / acc.count, acc.min, acc.max, acc.count, srcs]);
+        }
+        rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+        dailyMetrics[metric] = rows;
+      }
+      return dailyMetrics;
+    },
+  };
+}
+
+// export.xmlを1つの巨大文字列にしない：チャンクごとにデコード→正規表現抽出→捨てる。
+async function parseExportXmlStream(stream, uncompressedSize, aggregator, onProgress) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let carry = "";
+  let bytesRead = 0;
+  const MAX_CARRY = 2000000;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytesRead += value.byteLength;
+    const text = carry + decoder.decode(value, { stream: true });
+    RECORD_TAG_RE.lastIndex = 0;
+    let lastEnd = 0;
+    let m;
+    while ((m = RECORD_TAG_RE.exec(text)) !== null) {
+      aggregator.ingest(m[1]);
+      lastEnd = RECORD_TAG_RE.lastIndex;
+    }
+    carry = text.slice(lastEnd);
+    if (carry.length > MAX_CARRY) carry = carry.slice(-1000);
+    if (onProgress) onProgress(bytesRead, uncompressedSize, aggregator.recordCount);
+  }
+  carry += decoder.decode();
+  RECORD_TAG_RE.lastIndex = 0;
+  let m2;
+  while ((m2 = RECORD_TAG_RE.exec(carry)) !== null) aggregator.ingest(m2[1]);
+  if (onProgress) onProgress(bytesRead, uncompressedSize, aggregator.recordCount);
+}
+
+function median(vals) {
+  if (!vals.length) return null;
+  const s = vals.slice().sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+function mean(vals) { return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null; }
+function pstdev(vals) {
+  if (!vals.length) return 0;
+  const m = mean(vals);
+  return Math.sqrt(vals.reduce((a, b) => a + (b - m) * (b - m), 0) / vals.length);
+}
+function fetchSeries(dm, metric) {
+  const rows = dm[metric];
+  if (!rows) return [];
+  return rows.map((r) => [r[0], r[1]]);
+}
+function valuesInWindow(dm, metric, startDate, endDate) {
+  return fetchSeries(dm, metric).filter(([d, v]) => d >= startDate && d < endDate && v != null).map(([, v]) => v);
+}
+function monthlyMedianSeries(series) {
+  const buckets = Object.create(null);
+  for (const [d, v] of series) {
+    if (v == null) continue;
+    const key = d.slice(0, 7);
+    (buckets[key] || (buckets[key] = [])).push(v);
+  }
+  return Object.keys(buckets).sort().map((key) => [key, Math.round(median(buckets[key]) * 10000) / 10000, buckets[key].length]);
+}
+function trendWord(pct) {
+  if (pct == null) return null;
+  if (pct <= -10) return "減少傾向";
+  if (pct >= 10) return "増加傾向";
+  return "横ばい";
+}
+function addDaysIso(dateStr, days) {
+  const dt = new Date(dateStr + "T00:00:00Z");
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+const JUDGMENT_THRESHOLDS = {
+  gait: { window_days: 90, asym_good_max: 2.0, asym_watch_max: 4.0, speed_good_min: 1.1, speed_watch_min: 1.0 },
+  activity: { window_days: 30, good_min: 7000, watch_min: 5000, yoy_drop_alert_pct: -15.0 },
+  body_comp: { fat_window_days: 30, weight_window_days: 365, fat_min: 10.0, fat_max: 20.0, weight_stability_kg: 2.0 },
+  recovery: { window_days: 30, min_measured_days: 10, rhr_good_max: 60.0 },
+};
+const CHART_BANDS = { asym_ok_max: 3.0, steps_target: 7000, speed_standard_min: 1.2, speed_standard_max: 1.4, dsupport_axis_min: 20.0 };
+
+/* =========================================================================
+   点数化ルール（v1）。すべて定数にまとめてあり、あとから調整可能。
+   状態語マッピング（全指標共通）：80点以上=良好◎／60〜79=まずまず△／
+   59以下=要注意⚠️／点数なし=材料不足－
+   ========================================================================= */
+const SCORE_RULES = {
+  activity: { target_steps: 7500, yoy_drop_threshold_pct: -15, yoy_penalty: 10 },
+  gait: {
+    asym_mild_threshold: 3, asym_mild_penalty: 20,
+    asym_severe_threshold: 5, asym_severe_penalty: 40,
+    dsupport_threshold: 32, dsupport_penalty: 15,
+    speed_mild_diff: 0.1, speed_mild_penalty: 10,
+    speed_severe_diff: 0.2, speed_severe_penalty: 25,
+    baseline_speed_default: 1.2,
+    baseline_speed_by_age: [
+      { max_age: 39, speed: 1.30 }, { max_age: 59, speed: 1.25 },
+      { max_age: 74, speed: 1.15 }, { max_age: Infinity, speed: 1.00 },
+    ],
+  },
+  body_comp: { bmi_min: 18.5, bmi_max: 25.0, bmi_penalty_per_unit: 10, bmi_score_floor: 40, fat_min: 10, fat_max: 25, fat_penalty: 10 },
+  recovery: { rhr_good_max: 60, rhr_good_score: 90, rhr_watch_max: 70, rhr_watch_score: 75, rhr_warn_score: 60, hrv_healthy_min: 40, hrv_bonus: 5, hrv_penalty: 5 },
+  level_bands: { good_min: 80, watch_min: 60 },
+};
+function baselineSpeedForAge(age) {
+  if (age == null) return SCORE_RULES.gait.baseline_speed_default;
+  for (const band of SCORE_RULES.gait.baseline_speed_by_age) {
+    if (age <= band.max_age) return band.speed;
+  }
+  return SCORE_RULES.gait.baseline_speed_default;
+}
+function clampScore(v) { return Math.max(0, Math.min(100, v)); }
+function scoreToStatus(score) {
+  const bands = SCORE_RULES.level_bands;
+  if (score == null) return { symbol: "－", level: "gray", label: "材料不足" };
+  if (score >= bands.good_min) return { symbol: "◎", level: "good", label: "良好" };
+  if (score >= bands.watch_min) return { symbol: "△", level: "watch", label: "まずまず" };
+  return { symbol: "⚠️", level: "warn", label: "要注意" };
+}
+function latestHealthWeight(dm) {
+  const series = fetchSeries(dm, "body_mass_kg").filter(([, v]) => v != null);
+  return series.length ? { date: series[series.length - 1][0], value: series[series.length - 1][1] } : null;
+}
+// 手入力体重とヘルスケア体重のうち、日付が新しい方を採用する（仕様どおり）。
+function effectiveWeight(dm, profile) {
+  const health = latestHealthWeight(dm);
+  const manual = (profile && profile.weight != null && profile.weightDate) ? { date: profile.weightDate, value: profile.weight, manual: true } : null;
+  if (health && manual) return manual.date > health.date ? manual : { ...health, manual: false };
+  if (manual) return manual;
+  if (health) return { ...health, manual: false };
+  return null;
+}
+
+function classifyGaitQuality(dm, today, profile) {
+  const th = JUDGMENT_THRESHOLDS.gait;
+  const sr = SCORE_RULES.gait;
+  const start = addDaysIso(today, -th.window_days);
+  const asymVals = valuesInWindow(dm, "walking_asymmetry_pct", start, today);
+  const speedVals = valuesInWindow(dm, "walking_speed_m_s", start, today);
+  if (!asymVals.length || !speedVals.length) {
+    return { ...scoreToStatus(null), reason: `直近${th.window_days}日の左右非対称性・歩行速度データが不足しています。`,
+      score: null, breakdown: [`直近${th.window_days}日の左右非対称性・歩行速度データが不足しているため採点できません。`] };
+  }
+  const asymMed = median(asymVals), speedMed = median(speedVals);
+  const dsupportVals = valuesInWindow(dm, "walking_double_support_pct", start, today);
+  const dsupportMed = dsupportVals.length ? median(dsupportVals) : null;
+  const baseline = baselineSpeedForAge(profile && profile.age);
+
+  let asymPenalty = 0;
+  if (asymMed > sr.asym_severe_threshold) asymPenalty = sr.asym_severe_penalty;
+  else if (asymMed > sr.asym_mild_threshold) asymPenalty = sr.asym_mild_penalty;
+
+  let dsupportPenalty = 0;
+  if (dsupportMed != null && dsupportMed > sr.dsupport_threshold) dsupportPenalty = sr.dsupport_penalty;
+
+  const speedDiff = baseline - speedMed;
+  let speedPenalty = 0;
+  if (speedDiff >= sr.speed_severe_diff) speedPenalty = sr.speed_severe_penalty;
+  else if (speedDiff >= sr.speed_mild_diff) speedPenalty = sr.speed_mild_penalty;
+
+  const score = clampScore(100 - asymPenalty - dsupportPenalty - speedPenalty);
+  const breakdown = [
+    `基準100点。左右非対称性 中央値${asymMed.toFixed(2)}% → ${asymPenalty ? `-${asymPenalty}点` : "減点なし"}`,
+    `両脚支持時間 ${dsupportMed != null ? `中央値${dsupportMed.toFixed(1)}%` : "データなし"} → ${dsupportPenalty ? `-${dsupportPenalty}点` : "減点なし"}`,
+    `歩行速度 中央値${speedMed.toFixed(2)}m/s（基準${baseline.toFixed(2)}m/s${profile && profile.age != null ? `・${profile.age}歳の年代別基準` : "・年齢未入力のため一律基準1.20m/s"}、差${speedDiff.toFixed(2)}m/s） → ${speedPenalty ? `-${speedPenalty}点` : "減点なし"}`,
+    `合計：${score}点`,
+  ];
+  return { ...scoreToStatus(score),
+    reason: `直近${th.window_days}日の左右非対称性 中央値${asymMed.toFixed(2)}%・歩行速度 中央値${speedMed.toFixed(2)}m/s`,
+    score, breakdown, asym_median: asymMed, speed_median: speedMed };
+}
+function classifyActivity(dm, today) {
+  const th = JUDGMENT_THRESHOLDS.activity;
+  const sr = SCORE_RULES.activity;
+  const start = addDaysIso(today, -th.window_days);
+  const prevYearEnd = addDaysIso(today, -365);
+  const prevYearStart = addDaysIso(today, -(365 + th.window_days));
+  const steps = valuesInWindow(dm, "step_count", start, today);
+  if (!steps.length) {
+    return { ...scoreToStatus(null), reason: `直近${th.window_days}日の歩数データがありません。`,
+      score: null, breakdown: [`直近${th.window_days}日の歩数データがないため採点できません。`] };
+  }
+  const stepsMed = median(steps);
+  let reason = `直近${th.window_days}日の歩数 中央値${Math.round(stepsMed).toLocaleString("ja-JP")}歩/日`;
+  const stepsPrev = valuesInWindow(dm, "step_count", prevYearStart, prevYearEnd);
+  let yoyPct = null;
+  if (stepsPrev.length) {
+    const stepsPrevMed = median(stepsPrev);
+    if (stepsPrevMed) {
+      yoyPct = ((stepsMed - stepsPrevMed) / stepsPrevMed) * 100;
+      if (yoyPct < th.yoy_drop_alert_pct) reason += `。前年同期比${yoyPct.toFixed(0)}%——前年より大きく減少`;
+    }
+  }
+  const baseScore = Math.min(100, Math.round((stepsMed / sr.target_steps) * 100));
+  const yoyApplies = yoyPct != null && yoyPct <= sr.yoy_drop_threshold_pct;
+  const score = clampScore(yoyApplies ? baseScore - sr.yoy_penalty : baseScore);
+  const breakdown = [
+    `歩数スコア：min(100, ${Math.round(stepsMed).toLocaleString("ja-JP")}歩 ÷ ${sr.target_steps.toLocaleString("ja-JP")}歩 × 100) = ${baseScore}点`,
+  ];
+  if (yoyApplies) breakdown.push(`前年同期比${yoyPct.toFixed(0)}%（${sr.yoy_drop_threshold_pct}%以下）のため -${sr.yoy_penalty}点`);
+  breakdown.push(`合計：${score}点`);
+  return { ...scoreToStatus(score), reason, score, breakdown, steps_median: stepsMed, yoy_pct: yoyPct };
+}
+function classifyBodyComp(dm, today, profile) {
+  const th = JUDGMENT_THRESHOLDS.body_comp;
+  const sr = SCORE_RULES.body_comp;
+  const fatStart = addDaysIso(today, -th.fat_window_days);
+  const weightStart = addDaysIso(today, -th.weight_window_days);
+  const fatVals = valuesInWindow(dm, "body_fat_pct", fatStart, today);
+  const weightVals = valuesInWindow(dm, "body_mass_kg", weightStart, today);
+  const fatMed = fatVals.length ? median(fatVals) : null;
+  const weightCenter = weightVals.length ? median(weightVals) : null;
+  const maxDev = weightVals.length ? Math.max(...weightVals.map((v) => Math.abs(v - weightCenter))) : null;
+
+  const eff = effectiveWeight(dm, profile);
+  const height = profile && profile.height != null ? profile.height : null;
+  let score = null;
+  let breakdown;
+  if (height != null && eff != null) {
+    const heightM = height / 100;
+    const bmi = eff.value / (heightM * heightM);
+    let bmiScore, diffText = "";
+    if (bmi >= sr.bmi_min && bmi <= sr.bmi_max) {
+      bmiScore = 100;
+    } else {
+      const diff = bmi < sr.bmi_min ? sr.bmi_min - bmi : bmi - sr.bmi_max;
+      const penalty = diff * sr.bmi_penalty_per_unit;
+      bmiScore = Math.max(sr.bmi_score_floor, 100 - penalty);
+      diffText = `（適正帯から${diff.toFixed(1)}ずれ、-${penalty.toFixed(0)}点）`;
+    }
+    let fatPenalty = 0;
+    if (fatMed != null && (fatMed < sr.fat_min || fatMed > sr.fat_max)) fatPenalty = sr.fat_penalty;
+    score = clampScore(bmiScore - fatPenalty);
+    breakdown = [
+      `体重${eff.value.toFixed(1)}kg${eff.manual ? "（手入力）" : "（ヘルスケアデータ）"}・身長${height}cmからBMI ${bmi.toFixed(1)} → ${Math.round(bmiScore)}点${diffText}`,
+      fatMed != null ? `体脂肪率 中央値${fatMed.toFixed(1)}% → ${fatPenalty ? `-${fatPenalty}点` : "減点なし"}` : "体脂肪率データなし（補正なし）",
+      `合計：${score}点`,
+    ];
+  } else {
+    breakdown = ["身長と体重（手入力またはヘルスケアデータ）が両方揃っていないため採点できません。身長と体重を入れると採点できます。"];
+  }
+  const reason = height != null && eff != null
+    ? `BMI ${(eff.value / Math.pow(height / 100, 2)).toFixed(1)}・体脂肪率${fatMed != null ? `中央値${fatMed.toFixed(1)}%` : "データなし"}`
+    : "身長と体重を入れると採点できます（判定不能）";
+  return { ...scoreToStatus(score), reason, score, breakdown, fat_median: fatMed, weight_max_dev: maxDev };
+}
+function classifyRecovery(dm, today) {
+  const th = JUDGMENT_THRESHOLDS.recovery;
+  const sr = SCORE_RULES.recovery;
+  const start = addDaysIso(today, -th.window_days);
+  const rhrSeries = fetchSeries(dm, "resting_heart_rate_bpm");
+  const hrvSeries = fetchSeries(dm, "hrv_sdnn_ms");
+  const rhrDates = new Set(rhrSeries.filter(([d, v]) => d >= start && d < today && v != null).map(([d]) => d));
+  const hrvDates = new Set(hrvSeries.filter(([d, v]) => d >= start && d < today && v != null).map(([d]) => d));
+  const measuredDays = new Set([...rhrDates, ...hrvDates]).size;
+  if (measuredDays < th.min_measured_days) {
+    return { ...scoreToStatus(null), reason: `直近${th.window_days}日の計測日数が${measuredDays}日のみ（Watch装着日が少ない）`, measured_days: measuredDays,
+      score: null, breakdown: [`直近${th.window_days}日の計測日数が${measuredDays}日（必要${th.min_measured_days}日以上）のため採点できません。`] };
+  }
+  const rhrVals = rhrSeries.filter(([d, v]) => d >= start && d < today && v != null).map(([, v]) => v);
+  const hrvVals = hrvSeries.filter(([d, v]) => d >= start && d < today && v != null).map(([, v]) => v);
+  const rhrMed = rhrVals.length ? median(rhrVals) : null;
+  const hrvMed = hrvVals.length ? median(hrvVals) : null;
+  const rhrText = rhrMed != null ? `${Math.round(rhrMed)}bpm` : "データなし";
+
+  let score = null;
+  const breakdown = [];
+  if (rhrMed != null) {
+    let baseScore, tierText;
+    if (rhrMed < sr.rhr_good_max) { baseScore = sr.rhr_good_score; tierText = `${sr.rhr_good_max}bpm未満`; }
+    else if (rhrMed <= sr.rhr_watch_max) { baseScore = sr.rhr_watch_score; tierText = `${sr.rhr_good_max}〜${sr.rhr_watch_max}bpm`; }
+    else { baseScore = sr.rhr_warn_score; tierText = `${sr.rhr_watch_max}bpm超`; }
+    breakdown.push(`安静時心拍 中央値${rhrMed.toFixed(0)}bpm（${tierText}）→ ${baseScore}点`);
+    let hrvAdj = 0;
+    if (hrvMed != null) {
+      hrvAdj = hrvMed >= sr.hrv_healthy_min ? sr.hrv_bonus : -sr.hrv_penalty;
+      breakdown.push(`HRV 中央値${hrvMed.toFixed(0)}ms（目安${sr.hrv_healthy_min}ms${hrvMed >= sr.hrv_healthy_min ? "以上" : "未満"}）→ ${hrvAdj >= 0 ? "+" : ""}${hrvAdj}点`);
+    } else {
+      breakdown.push("HRVデータなし（補正なし）");
+    }
+    score = clampScore(baseScore + hrvAdj);
+    breakdown.push(`合計：${score}点`);
+  } else {
+    breakdown.push("安静時心拍データがないため採点できません。");
+  }
+  return { ...scoreToStatus(score), reason: `直近${th.window_days}日の計測日数${measuredDays}日・安静時心拍 中央値${rhrText}`,
+    measured_days: measuredDays, rhr_median: rhrMed, hrv_median: hrvMed, score, breakdown };
+}
+function buildVerdicts(dm, today, profile) {
+  return {
+    gait: { title: "歩きの質", ...classifyGaitQuality(dm, today, profile) },
+    activity: { title: "活動量", ...classifyActivity(dm, today) },
+    body_comp: { title: "体組成", ...classifyBodyComp(dm, today, profile) },
+    recovery: { title: "回復系", ...classifyRecovery(dm, today) },
+  };
+}
+function headlineAction(key, dm, today) {
+  if (key === "activity") {
+    const th = JUDGMENT_THRESHOLDS.activity;
+    const d90 = addDaysIso(today, -90), d30 = addDaysIso(today, -30);
+    const med90 = median(valuesInWindow(dm, "step_count", d90, today));
+    const med30 = median(valuesInWindow(dm, "step_count", d30, today));
+    if (med90 && med30 && med90 > med30) return `まず歩数を直近90日水準（${Math.floor(med90 / 100) * 100}歩/日台）へ`;
+    return `まず歩数の底上げを（目安${th.good_min.toLocaleString("ja-JP")}歩/日）`;
+  }
+  if (key === "gait") return "歩きの質の指標を次回の計測で再確認を";
+  if (key === "body_comp") return "体組成の変動を次の計測で確認を";
+  if (key === "recovery") return "Watch装着日を増やして回復系データの蓄積を";
+  return null;
+}
+function buildHeadline(verdicts, dm, today) {
+  const order = ["gait", "activity", "body_comp", "recovery"];
+  const groups = { good: [], watch: [], warn: [], gray: [] };
+  for (const key of order) groups[verdicts[key].level].push([key, verdicts[key].title]);
+  const parts = [];
+  if (groups.good.length) parts.push(groups.good.map(([, t]) => t).join("・") + "は良好");
+  if (groups.watch.length) parts.push(groups.watch.map(([, t]) => t).join("・") + "は要観察");
+  if (groups.warn.length) parts.push(groups.warn.map(([, t]) => t).join("・") + "が要注意");
+  if (!parts.length) return "今月は判定材料が不足しています——Watch装着とデータ取り込みを";
+  const status = parts.join("、");
+  let action = null;
+  for (const level of ["warn", "watch"]) {
+    for (const [key] of groups[level]) { action = headlineAction(key, dm, today); if (action) break; }
+    if (action) break;
+  }
+  if (action == null) action = "この調子で維持を";
+  return `${status}——${action}`;
+}
+
+function refNoteBodyFat(pct) {
+  if (pct == null) return "";
+  if (pct < 10) return "低めの水準（目安レンジの下限を割る値。体組成計の測定条件差にも留意）";
+  if (pct <= 25) return "一般的な目安レンジ内（目安として成人男性10〜20%・成人女性18〜28%程度とされることが多い）";
+  return "目安レンジの上限を超える水準";
+}
+function refNoteRestingHr(bpm) {
+  if (bpm == null) return "";
+  if (bpm < 60) return "低め（心肺機能が高い人に見られる傾向）";
+  if (bpm <= 70) return "標準域";
+  if (bpm <= 80) return "やや高め";
+  return "高め（気になる場合は相談を）";
+}
+function refNoteSpeed(v) {
+  if (v == null) return "";
+  if (v < 1.0) return "やや低め";
+  if (v < 1.2) return "標準域の下限あたり";
+  if (v <= 1.4) return "成人の標準域";
+  return "速い部類";
+}
+function refNoteStepLength(cm) {
+  if (cm == null) return "";
+  if (cm < 60) return "やや小さめ";
+  if (cm <= 80) return "成人の目安範囲";
+  return "大きめ";
+}
+function refNoteSteps(v, target) {
+  if (v == null) return "";
+  if (v >= target) return `目安${target.toLocaleString("ja-JP")}歩を達成`;
+  if (v >= target * 0.7) return `目安${target.toLocaleString("ja-JP")}歩にはやや届かず`;
+  return `目安${target.toLocaleString("ja-JP")}歩を大きく下回る`;
+}
+function refNoteWeight(maxDev) {
+  if (maxDev == null) return "";
+  return `直近1年は中心値から最大±${maxDev.toFixed(1)}kgの変動`;
+}
+function buildProfileSnapshot(dm, today, weightMaxDev, profile) {
+  function latest(metric) {
+    const series = fetchSeries(dm, metric).filter(([, v]) => v != null);
+    return series.length ? series[series.length - 1] : [null, null];
+  }
+  const eff = effectiveWeight(dm, profile);
+  const weightVal = eff ? eff.value : null;
+  const weightNote = eff && eff.manual ? `手入力（${eff.date}時点）` : refNoteWeight(weightMaxDev);
+  const [, fatVal] = latest("body_fat_pct");
+  const [, rhrVal] = latest("resting_heart_rate_bpm");
+  const [, speedVal] = latest("walking_speed_m_s");
+  const [, steplenVal] = latest("walking_step_length_cm");
+  const d30 = addDaysIso(today, -30);
+  const steps30 = valuesInWindow(dm, "step_count", d30, today);
+  const stepsMed = steps30.length ? median(steps30) : null;
+  const target = JUDGMENT_THRESHOLDS.activity.good_min;
+  return [
+    { key: "weight", label: "体重", value: weightVal, decimals: 1, unit: "kg", note: weightNote },
+    { key: "body_fat", label: "体脂肪率", value: fatVal, decimals: 1, unit: "%", note: refNoteBodyFat(fatVal) },
+    { key: "rhr", label: "安静時心拍", value: rhrVal, decimals: 0, unit: "bpm", note: refNoteRestingHr(rhrVal) },
+    { key: "speed", label: "歩行速度", value: speedVal, decimals: 2, unit: "m/s", note: refNoteSpeed(speedVal) },
+    { key: "step_length", label: "歩幅", value: steplenVal, decimals: 0, unit: "cm", note: refNoteStepLength(steplenVal) },
+    { key: "steps30", label: "直近30日歩数/日", value: stepsMed, decimals: 0, unit: "歩", note: refNoteSteps(stepsMed, target) },
+  ];
+}
+
+function buildChartPackage(dm, today, verdicts) {
+  const d90 = addDaysIso(today, -90);
+  const last12Start = addDaysIso(today, -365);
+  const prev12Start = addDaysIso(today, -730);
+  const charts = {};
+
+  const stepsSeries = fetchSeries(dm, "step_count");
+  const stepsMonthly = monthlyMedianSeries(stepsSeries);
+  const stepsLast12 = stepsSeries.filter(([d, v]) => d >= last12Start && d < today && v != null).map(([, v]) => v);
+  const stepsPrev12 = stepsSeries.filter(([d, v]) => d >= prev12Start && d < last12Start && v != null).map(([, v]) => v);
+  let stepsPct = null;
+  if (stepsLast12.length && stepsPrev12.length) {
+    const medLast = median(stepsLast12), medPrev = median(stepsPrev12);
+    if (medPrev) stepsPct = ((medLast - medPrev) / medPrev) * 100;
+  }
+  const trend = trendWord(stepsPct);
+  const firstYear = stepsMonthly.length ? stepsMonthly[0][0].slice(0, 4) : "-";
+  const stepsTitle = trend && stepsPct != null ? `歩数は直近1年で${trend}——前年比${stepsPct >= 0 ? "+" : ""}${stepsPct.toFixed(0)}%` : "歩数の推移";
+  charts.steps = { title: stepsTitle, sub: `${firstYear}年〜のデータ。3か月移動中央値でならした線（青は直近12か月）。薄い線は月ごとの値`,
+    series: stepsMonthly, decimals: 0, zero_base: true,
+    band: { type: "line", value: CHART_BANDS.steps_target, label: `目安 ${CHART_BANDS.steps_target.toLocaleString("ja-JP")}歩` } };
+
+  const asymSeries = fetchSeries(dm, "walking_asymmetry_pct");
+  const asymMonthly = monthlyMedianSeries(asymSeries);
+  const asym90 = asymSeries.filter(([d, v]) => d >= d90 && d < today && v != null).map(([, v]) => v);
+  const asymMed90 = asym90.length ? median(asym90) : null;
+  const asymTitle = asymMed90 != null ? `左右非対称性は直近90日中央値${asymMed90.toFixed(2)}%——${asymMed90 <= CHART_BANDS.asym_ok_max ? "問題なし圏内" : "観察ゾーン"}` : "左右非対称性の推移";
+  charts.asym = { title: asymTitle, sub: "低いほど良い指標。0〜3%帯は問題なし圏。線は3か月移動中央値・薄い線は月ごとの値",
+    series: asymMonthly, decimals: 2, zero_base: true, band: { type: "range", min: 0, max: CHART_BANDS.asym_ok_max, label: "問題なし圏" } };
+
+  const speedSeries = fetchSeries(dm, "walking_speed_m_s");
+  const speedMonthly = monthlyMedianSeries(speedSeries);
+  const speed90 = speedSeries.filter(([d, v]) => d >= d90 && d < today && v != null).map(([, v]) => v);
+  const speedMed90 = speed90.length ? median(speed90) : null;
+  let speedTitle = "歩行速度の推移";
+  if (speedMed90 != null) {
+    let zone;
+    if (speedMed90 >= CHART_BANDS.speed_standard_min && speedMed90 <= CHART_BANDS.speed_standard_max) zone = "成人標準域内";
+    else if (speedMed90 < CHART_BANDS.speed_standard_min) zone = "標準域よりやや低め";
+    else zone = "標準域より速い";
+    speedTitle = `歩行速度は直近90日中央値${speedMed90.toFixed(2)}m/s——${zone}`;
+  }
+  const steplenMonthly = monthlyMedianSeries(fetchSeries(dm, "walking_step_length_cm"));
+  charts.speed = { title: speedTitle, sub: "帯は成人標準域（1.2〜1.4m/s）。線は3か月移動中央値・薄い線は月ごとの値。下の小さいグラフは歩幅（cm）",
+    series: speedMonthly, decimals: 2, zero_base: false,
+    band: { type: "range", min: CHART_BANDS.speed_standard_min, max: CHART_BANDS.speed_standard_max, label: "成人標準域" },
+    step_length_series: steplenMonthly };
+
+  const dsupportSeries = fetchSeries(dm, "walking_double_support_pct");
+  const dsupportMonthly = monthlyMedianSeries(dsupportSeries);
+  const dsupportAllVals = dsupportSeries.filter(([, v]) => v != null).map(([, v]) => v);
+  const stability = dsupportAllVals.length && pstdev(dsupportAllVals) < 3 ? "安定的に推移" : "変動あり";
+  const dsupport90 = dsupportSeries.filter(([d, v]) => d >= d90 && d < today && v != null).map(([, v]) => v);
+  const dsupportMed90 = dsupport90.length ? median(dsupport90) : null;
+  const dsupportTitle = dsupportMed90 != null ? `両脚支持時間は直近90日中央値${dsupportMed90.toFixed(1)}%——${stability}` : "両脚支持時間の推移";
+  charts.dsupport = { title: dsupportTitle, sub: "低いほど安定した片脚支持ができている ※縦軸20%起点・線は3か月移動中央値（薄い線は月ごとの値）",
+    series: dsupportMonthly, decimals: 1, zero_base: false, y_min: CHART_BANDS.dsupport_axis_min, band: null };
+
+  const weightMonthly = monthlyMedianSeries(fetchSeries(dm, "body_mass_kg"));
+  const fatMonthly = monthlyMedianSeries(fetchSeries(dm, "body_fat_pct"));
+  charts.bodycomp = { title: `体重・体脂肪率——${verdicts.body_comp.reason}`, sub: "3か月移動中央値でならした線。薄い線は月ごとの値",
+    weight_series: weightMonthly, fat_series: fatMonthly };
+
+  const rhrSeries = fetchSeries(dm, "resting_heart_rate_bpm").filter(([, v]) => v != null);
+  const hrvSeries = fetchSeries(dm, "hrv_sdnn_ms").filter(([, v]) => v != null);
+  const recV = verdicts.recovery;
+  let recTitle = "安静時心拍・HRV";
+  if (recV.level === "gray" && recV.measured_days != null) recTitle = `安静時心拍・HRV——直近30日の計測${recV.measured_days}日のみで判定材料不足`;
+  else if (recV.rhr_median != null) recTitle = `安静時心拍・HRV——安静時心拍 中央値${recV.rhr_median.toFixed(0)}bpmで${recV.label}`;
+  charts.recovery = { title: recTitle, sub: "Watch装着日のみ計測される疎らな指標のため、月集計はせず点プロットで表示",
+    rhr_series: rhrSeries, hrv_series: hrvSeries };
+
+  return { charts, recentCutoff: last12Start.slice(0, 7) };
+}
+
+function buildFindings(dm, today, verdicts) {
+  const th90 = addDaysIso(today, -90), th30 = addDaysIso(today, -30);
+  const asymMed30 = median(valuesInWindow(dm, "walking_asymmetry_pct", th30, today));
+  const asymMed90 = median(valuesInWindow(dm, "walking_asymmetry_pct", th90, today));
+  const dsupport30 = median(valuesInWindow(dm, "walking_double_support_pct", th30, today));
+  const dsupport90 = median(valuesInWindow(dm, "walking_double_support_pct", th90, today));
+  const steps30 = median(valuesInWindow(dm, "step_count", th30, today));
+  const steps90 = median(valuesInWindow(dm, "step_count", th90, today));
+  const dist30 = median(valuesInWindow(dm, "distance_km", th30, today));
+  const rhrSeries = fetchSeries(dm, "resting_heart_rate_bpm");
+  const hrvSeries = fetchSeries(dm, "hrv_sdnn_ms");
+  const measuredDays = verdicts.recovery.measured_days;
+  const rhrMed30 = median(rhrSeries.filter(([d, v]) => d >= th30 && d < today && v != null).map(([, v]) => v));
+  const hrvMed30 = median(hrvSeries.filter(([d, v]) => d >= th30 && d < today && v != null).map(([, v]) => v));
+
+  const gaitOk = verdicts.gait.level === "good";
+  const oneLiner = gaitOk ? "左右非対称性・歩行速度ともに大きな崩れは見られません"
+    : verdicts.gait.level === "gray" ? "歩きの質を判定するにはデータがまだ不足しています"
+    : "歩行速度や左右非対称性にいつもと違う値が出ています";
+
+  const gaitBullet = asymMed30 != null && asymMed90 != null
+    ? `左右非対称性は直近30日中央値${asymMed30.toFixed(2)}%、直近90日中央値${asymMed90.toFixed(2)}%です。` +
+      (dsupport30 != null && dsupport90 != null ? `両脚支持時間も直近30日中央値${dsupport30.toFixed(2)}%・直近90日中央値${dsupport90.toFixed(2)}%で、大きな差はありません。` : "")
+    : "左右非対称性・両脚支持時間の直近データが不足しており、判定を保留しています。";
+
+  const activityBullet = steps30 != null
+    ? `歩数は直近30日中央値${Math.round(steps30).toLocaleString("ja-JP")}歩/日で、直近90日中央値${steps90 != null ? Math.round(steps90).toLocaleString("ja-JP") : "-"}歩と比べて` +
+      (steps90 != null && steps30 < steps90 * 0.9 ? "少なめです。" : steps90 != null && steps30 > steps90 * 1.1 ? "多めです。" : "大きな差はありません。") +
+      (dist30 != null ? `距離も直近30日中央値${dist30.toFixed(2)}kmです。` : "")
+    : "歩数データが直近30日で不足しています。";
+
+  const recoveryBullet = measuredDays != null && measuredDays < JUDGMENT_THRESHOLDS.recovery.min_measured_days
+    ? `直近30日の計測日数は${measuredDays}日のみで、装着日が少ないため回復状態の判定は保留が妥当です。`
+    : rhrMed30 != null ? `直近30日の安静時心拍中央値は${rhrMed30.toFixed(0)}bpm${hrvMed30 != null ? `、HRV中央値は${hrvMed30.toFixed(0)}ms` : ""}です。`
+    : "安静時心拍・HRVのデータが直近30日で不足しています。";
+
+  let nextAction;
+  if (verdicts.activity.level !== "good" && steps90 != null) {
+    nextAction = `次の一手は、1日あたりの歩数を直近90日中央値${Math.round(steps90).toLocaleString("ja-JP")}歩付近へ戻すことです。そのうえで左右非対称性・歩行速度が今の水準で保たれるかを確認すると、量の不足か歩行機能の変化かを切り分けやすくなります。`;
+  } else if (verdicts.recovery.level === "gray") {
+    nextAction = "次の一手は、Watch装着日を増やして回復系データ（安静時心拍・HRV）の蓄積を進めることです。";
+  } else {
+    nextAction = "次の一手は、この水準を維持しつつ、次回の計測でも同じ傾向が続くか確認することです。";
+  }
+
+  return { oneLiner, gaitBullet, activityBullet, recoveryBullet, nextAction,
+    disclaimer: "この所見は計測に基づく推定であり、診断ではありません。" };
+}
+
+/* =========================================================================
+   PART B: IndexedDB永続化＋バックアップJSON往復
+   ========================================================================= */
+
+const DB_NAME = "karada-log-webapp";
+const DB_VERSION = 2;
+const STORE_NAME = "reports";
+const RECORD_KEY = "current";
+const SCHEMA_VERSION = 1;
+const PROFILE_STORE = "profile";
+const PROFILE_KEY = "current";
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") { reject(new Error("このブラウザはIndexedDBに対応していません。")); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+      if (!db.objectStoreNames.contains(PROFILE_STORE)) db.createObjectStore(PROFILE_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error("IndexedDBを開けませんでした"));
+  });
+}
+function idbRequest(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error("IndexedDB操作に失敗しました"));
+  });
+}
+async function saveReport({ dailyMetrics, today, importedAt, sourceLabel }) {
+  const payload = { schemaVersion: SCHEMA_VERSION, dailyMetrics, today, importedAt, sourceLabel };
+  const db = await openDb();
+  try {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    await idbRequest(store.put(payload, RECORD_KEY));
+    await new Promise((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+  } finally { db.close(); }
+  return payload;
+}
+async function loadReport() {
+  const db = await openDb();
+  try {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const result = await idbRequest(tx.objectStore(STORE_NAME).get(RECORD_KEY));
+    return result || null;
+  } finally { db.close(); }
+}
+async function deleteReport() {
+  const db = await openDb();
+  try {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    await idbRequest(tx.objectStore(STORE_NAME).delete(RECORD_KEY));
+    await new Promise((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+  } finally { db.close(); }
+}
+// --- わたしの情報（プロフィール）。健康データ（reports）とは別ストアに保存する。
+// 「保存データを消す」（health importの削除）でプロフィールまでは消えない設計。
+function normalizeProfile(p) {
+  return {
+    age: p && typeof p.age === "number" && !Number.isNaN(p.age) ? p.age : null,
+    height: p && typeof p.height === "number" && !Number.isNaN(p.height) ? p.height : null,
+    weight: p && typeof p.weight === "number" && !Number.isNaN(p.weight) ? p.weight : null,
+    weightDate: p && typeof p.weightDate === "string" ? p.weightDate : null,
+  };
+}
+async function saveProfile(profile) {
+  const payload = normalizeProfile(profile);
+  const db = await openDb();
+  try {
+    const tx = db.transaction(PROFILE_STORE, "readwrite");
+    await idbRequest(tx.objectStore(PROFILE_STORE).put(payload, PROFILE_KEY));
+    await new Promise((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+  } finally { db.close(); }
+  return payload;
+}
+async function loadProfile() {
+  const db = await openDb();
+  try {
+    const tx = db.transaction(PROFILE_STORE, "readonly");
+    const result = await idbRequest(tx.objectStore(PROFILE_STORE).get(PROFILE_KEY));
+    return normalizeProfile(result);
+  } finally { db.close(); }
+}
+function buildBackupBlob(report, profile) {
+  const json = JSON.stringify({
+    schemaVersion: SCHEMA_VERSION, kind: "karada-log-webapp-backup",
+    dailyMetrics: report.dailyMetrics, today: report.today, importedAt: report.importedAt, sourceLabel: report.sourceLabel,
+    profile: profile ? normalizeProfile(profile) : null,
+  });
+  return new Blob([json], { type: "application/json" });
+}
+function parseBackupJson(text) {
+  let obj;
+  try { obj = JSON.parse(text); } catch (e) { throw new Error("バックアップファイルの形式が不正です（JSONとして読み込めません）。"); }
+  if (!obj || typeof obj !== "object") throw new Error("バックアップファイルの形式が不正です。");
+  if (obj.kind !== "karada-log-webapp-backup") throw new Error("このアプリのバックアップファイルではありません。");
+  if (!obj.dailyMetrics || typeof obj.dailyMetrics !== "object") throw new Error("バックアップファイルに集計データがありません。");
+  if (typeof obj.today !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(obj.today)) throw new Error("バックアップファイルの日付が不正です。");
+  return {
+    dailyMetrics: obj.dailyMetrics, today: obj.today,
+    importedAt: typeof obj.importedAt === "string" ? obj.importedAt : new Date().toISOString(),
+    sourceLabel: typeof obj.sourceLabel === "string" ? obj.sourceLabel : "バックアップから復元",
+    profile: obj.profile ? normalizeProfile(obj.profile) : null,
+  };
+}
+
+/* =========================================================================
+   PART C: チャート描画（dashboard.htmlのcanvas描画ロジックをそのまま移植）
+   ========================================================================= */
+
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function parseDateLocal(s) { return new Date(s + "T00:00:00"); }
+
+function rollingMedian3(series) {
+  return series.map(([m], i) => {
+    const windowVals = [];
+    for (let j = Math.max(0, i - 1); j <= Math.min(series.length - 1, i + 1); j++) windowVals.push(series[j][1]);
+    return [m, median(windowVals)];
+  });
+}
+function niceStep(rough) {
+  const exp = Math.floor(Math.log10(rough));
+  const base = Math.pow(10, exp);
+  const m = rough / base;
+  let f;
+  if (m <= 1.2) f = 1; else if (m <= 2.2) f = 2; else if (m <= 3) f = 2.5; else if (m <= 6) f = 5; else f = 10;
+  return f * base;
+}
+function tickDecimals(step) {
+  let d = Math.max(0, Math.ceil(-Math.log10(step) - 1e-9));
+  if (Math.abs(step * Math.pow(10, d) - Math.round(step * Math.pow(10, d))) > 1e-9) d += 1;
+  return d;
+}
+function niceScale(dataMin, dataMax, opts) {
+  opts = opts || {};
+  let vMin = dataMin, vMax = dataMax;
+  if (opts.band) {
+    if (opts.band.type === "range") { vMin = Math.min(vMin, opts.band.min); vMax = Math.max(vMax, opts.band.max); }
+    if (opts.band.type === "line") { vMin = Math.min(vMin, opts.band.value); vMax = Math.max(vMax, opts.band.value); }
+  }
+  if (opts.yMin !== undefined && opts.yMin !== null) vMin = Math.min(vMin, opts.yMin);
+  if (opts.yMax !== undefined && opts.yMax !== null) vMax = Math.max(vMax, opts.yMax);
+  if (opts.zeroBase && vMin > 0) vMin = 0;
+  if (vMin === vMax) { vMin -= 1; vMax += 1; }
+  const step = niceStep((vMax - vMin) / (opts.targetTicks || 4));
+  const lo = Math.floor(vMin / step + 1e-9) * step;
+  const hi = Math.ceil(vMax / step - 1e-9) * step;
+  const n = Math.round((hi - lo) / step);
+  const ticks = [];
+  for (let i = 0; i <= n; i++) ticks.push(lo + step * i);
+  return { lo, hi, ticks, decimals: tickDecimals(step) };
+}
+function fmtTick(v, decimals) {
+  if (decimals === 0 && Math.abs(v) >= 1000) return Math.round(v).toLocaleString("ja-JP");
+  return v.toFixed(decimals);
+}
+function drawYearAxis(ctx, xOf, dMin, dMax, padL, w, padT, h, cssHeight, gridColor, textColor, boundaryOf) {
+  const y0 = parseInt(dMin.slice(0, 4), 10);
+  const y1 = parseInt(dMax.slice(0, 4), 10);
+  const years = [];
+  for (let y = y0 + 1; y <= y1; y++) years.push(y);
+  if (years.length === 0) {
+    ctx.fillStyle = textColor; ctx.font = "11px sans-serif";
+    ctx.textAlign = "left"; ctx.fillText(dMin, padL, cssHeight - 4);
+    ctx.textAlign = "right"; ctx.fillText(dMax, padL + w, cssHeight - 4);
+    ctx.textAlign = "left";
+    return;
+  }
+  const labelEvery = Math.max(1, Math.ceil((years.length * 34) / w));
+  ctx.font = "11px sans-serif";
+  years.forEach((y, i) => {
+    const x = xOf(boundaryOf(y));
+    ctx.strokeStyle = gridColor; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + h); ctx.stroke();
+    if (i % labelEvery === 0) { ctx.fillStyle = textColor; ctx.textAlign = "center"; ctx.fillText(String(y), x, cssHeight - 4); }
+  });
+  ctx.textAlign = "left";
+}
+function drawMonthlyChart(canvasId, series, opts) {
+  opts = opts || {};
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 320;
+  const cssHeight = opts.height || 200;
+  canvas.width = cssWidth * dpr; canvas.height = cssHeight * dpr; canvas.style.height = cssHeight + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  const padL = 46, padR = 12, padT = 12, padB = 20;
+  const w = cssWidth - padL - padR, h = cssHeight - padT - padB;
+  const gridColor = cssVar("--grid"), textColor = cssVar("--text-faint"), accent = cssVar("--accent"), bandColor = cssVar("--accent-soft");
+  if (!series || series.length === 0) {
+    ctx.fillStyle = textColor; ctx.font = "12px sans-serif"; ctx.fillText("データなし", padL, padT + h / 2);
+    return;
+  }
+  const values = series.map((p) => p[1]);
+  const scale = niceScale(Math.min(...values), Math.max(...values), { band: opts.band, zeroBase: opts.zeroBase, yMin: opts.yMin, targetTicks: opts.targetTicks });
+  const vMin = scale.lo, vMax = scale.hi;
+  const months = series.map((p) => p[0]);
+  const mMin = months[0], mMax = months[months.length - 1];
+  const tMin = parseDateLocal(mMin + "-01").getTime(), tMax = parseDateLocal(mMax + "-01").getTime();
+  const tSpan = Math.max(1, tMax - tMin);
+  function xOf(m) { return padL + ((parseDateLocal(m + "-01").getTime() - tMin) / tSpan) * w; }
+  function yOf(v) { return padT + h - ((v - vMin) / (vMax - vMin)) * h; }
+  if (opts.band) {
+    if (opts.band.type === "range") {
+      ctx.fillStyle = bandColor; ctx.globalAlpha = 0.3;
+      const y1 = yOf(opts.band.max), y2 = yOf(opts.band.min);
+      ctx.fillRect(padL, y1, w, y2 - y1); ctx.globalAlpha = 1;
+    } else if (opts.band.type === "line") {
+      const y = yOf(opts.band.value);
+      ctx.strokeStyle = cssVar("--warn"); ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + w, y); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  ctx.strokeStyle = gridColor; ctx.fillStyle = textColor; ctx.font = "11px sans-serif"; ctx.lineWidth = 1;
+  scale.ticks.forEach((v) => {
+    const y = yOf(v);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + w, y); ctx.stroke();
+    ctx.fillText(fmtTick(v, scale.decimals), 2, y + 3);
+  });
+  if (opts.band && opts.band.label) {
+    ctx.fillStyle = textColor; ctx.font = "10px sans-serif"; ctx.textAlign = "right";
+    const y = opts.band.type === "range" ? yOf(opts.band.max) - 3 : yOf(opts.band.value) - 4;
+    ctx.fillText(opts.band.label, padL + w, Math.max(y, padT + 9));
+    ctx.textAlign = "left";
+  }
+  drawYearAxis(ctx, xOf, mMin, mMax, padL, w, padT, h, cssHeight, gridColor, textColor, (y) => y + "-01");
+  ctx.strokeStyle = textColor; ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
+  ctx.beginPath();
+  series.forEach(([m, v], i) => { const x = xOf(m), y = yOf(v); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+  ctx.stroke(); ctx.globalAlpha = 1;
+  const smoothed = rollingMedian3(series);
+  ctx.strokeStyle = textColor; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  smoothed.forEach(([m, v], i) => { const x = xOf(m), y = yOf(v); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+  ctx.stroke();
+  let recentDrawn = false;
+  if (opts.recentCutoff) {
+    let startIdx = smoothed.findIndex(([m]) => m >= opts.recentCutoff);
+    if (startIdx > 0) startIdx -= 1;
+    if (startIdx >= 0) {
+      const recent = smoothed.slice(startIdx);
+      ctx.strokeStyle = accent; ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      recent.forEach(([m, v], i) => { const x = xOf(m), y = yOf(v); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      ctx.stroke();
+      recentDrawn = true;
+    }
+  }
+  const lastV = smoothed[smoothed.length - 1][1];
+  const labelDec = opts.labelDecimals != null ? opts.labelDecimals : scale.decimals;
+  const labelText = fmtTick(lastV, labelDec) + (opts.unit || "");
+  ctx.fillStyle = recentDrawn ? accent : textColor;
+  ctx.font = "bold 11px sans-serif"; ctx.textAlign = "right";
+  let ly = yOf(lastV) - 6;
+  if (opts.band && opts.band.label) {
+    const bandY = opts.band.type === "range" ? yOf(opts.band.max) - 3 : yOf(opts.band.value) - 4;
+    if (Math.abs(ly - bandY) < 13) ly = yOf(lastV) + 14;
+  }
+  ly = Math.min(Math.max(ly, padT + 9), padT + h - 2);
+  ctx.fillText(labelText, padL + w, ly);
+  ctx.textAlign = "left";
+}
+function drawPointChart(canvasId, seriesList, opts) {
+  opts = opts || {};
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 320;
+  const cssHeight = opts.height || 200;
+  canvas.width = cssWidth * dpr; canvas.height = cssHeight * dpr; canvas.style.height = cssHeight + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  const padL = 46, padR = 12, padT = 12, padB = 20;
+  const w = cssWidth - padL - padR, h = cssHeight - padT - padB;
+  const gridColor = cssVar("--grid"), textColor = cssVar("--text-faint");
+  const colors = [cssVar("--accent"), cssVar("--line2")];
+  const allPoints = seriesList.flatMap((s) => s.data);
+  if (allPoints.length === 0) {
+    ctx.fillStyle = textColor; ctx.font = "12px sans-serif"; ctx.fillText("データなし", padL, padT + h / 2);
+    return;
+  }
+  const dates = allPoints.map((p) => p[0]).sort();
+  const vals = allPoints.map((p) => p[1]);
+  const scale = niceScale(Math.min(...vals), Math.max(...vals), { targetTicks: opts.targetTicks, yMin: opts.yMin, yMax: opts.yMax });
+  const vMin = scale.lo, vMax = scale.hi;
+  const dMin = dates[0], dMax = dates[dates.length - 1];
+  const tMin = parseDateLocal(dMin).getTime(), tMax = parseDateLocal(dMax).getTime();
+  const tSpan = Math.max(1, tMax - tMin);
+  function xOf(d) { return padL + ((parseDateLocal(d).getTime() - tMin) / tSpan) * w; }
+  function yOf(v) { return padT + h - ((v - vMin) / (vMax - vMin)) * h; }
+  ctx.strokeStyle = gridColor; ctx.fillStyle = textColor; ctx.font = "11px sans-serif";
+  scale.ticks.forEach((v) => {
+    const y = yOf(v);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + w, y); ctx.stroke();
+    ctx.fillText(fmtTick(v, scale.decimals), 2, y + 3);
+  });
+  drawYearAxis(ctx, xOf, dMin, dMax, padL, w, padT, h, cssHeight, gridColor, textColor, (y) => y + "-01-01");
+  seriesList.forEach((s, idx) => {
+    ctx.fillStyle = s.color || colors[idx % colors.length];
+    s.data.forEach(([d, v]) => { ctx.beginPath(); ctx.arc(xOf(d), yOf(v), 2.8, 0, Math.PI * 2); ctx.fill(); });
+  });
+}
+
+/* =========================================================================
+   PART D: UI制御（画面の状態遷移・イベント配線）
+   ========================================================================= */
+
+const els = {};
+function q(id) { return document.getElementById(id); }
+
+function renderVerdicts(verdicts, headline) {
+  els.verdictHeadline.textContent = headline;
+  const baseOrder = ["gait", "activity", "body_comp", "recovery"];
+  const severityRank = { warn: 0, watch: 1, gray: 2, good: 3 };
+  const order = baseOrder.slice().sort((a, b) => (severityRank[verdicts[a].level] ?? 9) - (severityRank[verdicts[b].level] ?? 9));
+  els.verdictList.innerHTML = order.map((key, i) => {
+    const v = verdicts[key];
+    const scoreText = v.score != null ? `${v.score}<span class="v-score-unit">点</span>` : "－";
+    return `<div class="v-row ${v.level}">
+      <span class="v-tag">${String(i + 1).padStart(2, "0")}</span>
+      <span class="v-title">${v.title}</span>
+      <span class="v-score">${scoreText}</span>
+      <span class="v-status"><span class="v-symbol">${v.symbol}</span>${v.label}</span>
+    </div>`;
+  }).join("");
+  renderScoreDetails(verdicts, baseOrder);
+}
+function renderScoreDetails(verdicts, order) {
+  const body = order.map((key) => {
+    const v = verdicts[key];
+    const lines = (v.breakdown || []).map((line) => `<p>${line}</p>`).join("");
+    return `<h4>${v.title}</h4>${lines}`;
+  }).join("");
+  els.scoreDetails.innerHTML = body + `<p class="disclaimer">点数は一般的な目安に基づく参考値であり、診断ではありません。</p>`;
+}
+function renderProfile(profile) {
+  els.profileGrid.innerHTML = profile.map((t) => {
+    const valStr = t.value != null ? Number(t.value).toFixed(t.decimals) : "-";
+    const noteHtml = t.note ? `<div class="tile-note">${t.note}</div>` : "";
+    return `<div class="hero-card"><div class="label">${t.label}</div><div class="value">${valStr}<span class="unit">${t.unit}</span></div>${noteHtml}</div>`;
+  }).join("");
+}
+function renderFindings(findings) {
+  const el = els.findings;
+  el.classList.remove("empty");
+  el.innerHTML = `<p><strong>${findings.oneLiner}</strong></p>
+    <ul>
+      <li><strong>歩きの質：</strong>${findings.gaitBullet}</li>
+      <li><strong>活動量：</strong>${findings.activityBullet}</li>
+      <li><strong>回復系：</strong>${findings.recoveryBullet}</li>
+    </ul>
+    <p><strong>次の一手：</strong>${findings.nextAction}</p>
+    <p class="disclaimer">${findings.disclaimer}</p>`;
+}
+function renderChartTitles(charts) {
+  q("steps-title").textContent = charts.steps.title;
+  q("steps-sub").textContent = charts.steps.sub;
+  q("asym-title").textContent = charts.asym.title;
+  q("asym-sub").textContent = charts.asym.sub;
+  q("speed-title").textContent = charts.speed.title;
+  q("speed-sub").textContent = charts.speed.sub;
+  q("dsupport-title").textContent = charts.dsupport.title;
+  q("dsupport-sub").textContent = charts.dsupport.sub;
+  q("bodycomp-title").textContent = charts.bodycomp.title;
+  q("bodycomp-sub").textContent = charts.bodycomp.sub;
+  q("recovery-title").textContent = charts.recovery.title;
+  q("recovery-sub").textContent = charts.recovery.sub;
+}
+function renderCharts(charts, recentCutoff) {
+  drawMonthlyChart("chart-steps", charts.steps.series, { decimals: charts.steps.decimals, band: charts.steps.band, recentCutoff, zeroBase: charts.steps.zero_base, height: 220, unit: "歩", labelDecimals: 0 });
+  drawMonthlyChart("chart-asym", charts.asym.series, { decimals: charts.asym.decimals, band: charts.asym.band, recentCutoff, zeroBase: charts.asym.zero_base, height: 200, unit: "%", labelDecimals: 1 });
+  drawMonthlyChart("chart-speed", charts.speed.series, { decimals: charts.speed.decimals, band: charts.speed.band, recentCutoff, zeroBase: charts.speed.zero_base, height: 200, unit: "m/s", labelDecimals: 2 });
+  drawMonthlyChart("chart-steplen", charts.speed.step_length_series, { decimals: 0, recentCutoff, height: 120, targetTicks: 3, unit: "cm", labelDecimals: 0 });
+  drawMonthlyChart("chart-dsupport", charts.dsupport.series, { decimals: charts.dsupport.decimals, band: charts.dsupport.band, recentCutoff, zeroBase: charts.dsupport.zero_base, yMin: charts.dsupport.y_min, height: 200, unit: "%", labelDecimals: 1 });
+  drawMonthlyChart("chart-weight", charts.bodycomp.weight_series, { decimals: 1, recentCutoff, height: 160, targetTicks: 3, unit: "kg", labelDecimals: 1 });
+  drawMonthlyChart("chart-bodyfat", charts.bodycomp.fat_series, { decimals: 1, recentCutoff, height: 160, targetTicks: 3, unit: "%", labelDecimals: 1 });
+  drawPointChart("chart-rhr", [{ data: charts.recovery.rhr_series, color: cssVar("--accent") }], { decimals: 0, height: 140, yMin: 40, yMax: 80 });
+  drawPointChart("chart-hrv", [{ data: charts.recovery.hrv_series, color: cssVar("--line2") }], { decimals: 0, height: 140 });
+}
+
+let currentReportData = null; // 直近に描画したレポート一式（リサイズ再描画・バックアップ書き出し用）
+let currentProfile = normalizeProfile(null); // わたしの情報（年齢・身長・体重）。健康データとは別に保持
+
+function renderReport(dailyMetrics, today, meta, profile) {
+  const verdicts = buildVerdicts(dailyMetrics, today, profile);
+  const headline = buildHeadline(verdicts, dailyMetrics, today);
+  const profileSnapshot = buildProfileSnapshot(dailyMetrics, today, verdicts.body_comp.weight_max_dev, profile);
+  const { charts, recentCutoff } = buildChartPackage(dailyMetrics, today, verdicts);
+  const findings = buildFindings(dailyMetrics, today, verdicts);
+
+  currentReportData = { dailyMetrics, today, meta, profile };
+
+  renderVerdicts(verdicts, headline);
+  renderProfile(profileSnapshot);
+  renderFindings(findings);
+  renderChartTitles(charts);
+  renderCharts(charts, recentCutoff);
+
+  document.getElementById("report-root").classList.remove("hidden-section");
+
+  const badge = q("saved-badge");
+  const badgeText = q("saved-badge-text");
+  if (meta && meta.importedAt) {
+    const d = new Date(meta.importedAt);
+    const label = isNaN(d.getTime()) ? meta.importedAt : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    badgeText.textContent = `保存データ：${label}取り込み分${meta.sourceLabel ? "（" + meta.sourceLabel + "）" : ""}`;
+    badge.style.display = "flex";
+  }
+}
+
+function setImportStatus(text, cls) {
+  els.importStatus.textContent = text;
+  els.importStatus.className = "import-status" + (cls ? " " + cls : "");
+}
+function setProgress(pct, extra) {
+  els.progressWrap.classList.add("active");
+  els.progressBar.style.width = pct + "%";
+  els.progressLabel.textContent = `${pct}%${extra ? " " + extra : ""}`;
+}
+function hideProgress() { els.progressWrap.classList.remove("active"); }
+
+async function processZipFile(file) {
+  if (typeof DecompressionStream === "undefined") {
+    setImportStatus("お使いのブラウザは非対応です（DecompressionStream未対応）。Chrome/Safariの最新版でお試しください。", "err");
+    return;
+  }
+  els.dzFilename.textContent = file.name;
+  setImportStatus("読み込み中…", "");
+  setProgress(0, "");
+
+  try {
+    const entry = await zipFindEntry(file, "export.xml");
+    if (!entry) {
+      setImportStatus("zipの中にexport.xmlが見つかりませんでした。Appleヘルスケアの書き出しzipを選んでください。", "err");
+      hideProgress();
+      return;
+    }
+    const stream = await zipEntryStream(file, entry);
+    const aggregator = createAggregator();
+
+    let lastUiUpdate = 0;
+    await parseExportXmlStream(stream, entry.uncompressedSize, aggregator, (bytesRead, total, recCount) => {
+      const now = performance.now();
+      if (now - lastUiUpdate < 80 && bytesRead < total) return; // UI更新を間引く(80ms)
+      lastUiUpdate = now;
+      const pct = Math.min(100, Math.floor((bytesRead / total) * 100));
+      setProgress(pct, `${recCount.toLocaleString("ja-JP")}件`);
+    });
+
+    const dailyMetrics = aggregator.finalize();
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const meta = { importedAt: now.toISOString(), sourceLabel: file.name };
+
+    renderReport(dailyMetrics, today, meta, currentProfile);
+
+    try {
+      await saveReport({ dailyMetrics, today, importedAt: meta.importedAt, sourceLabel: meta.sourceLabel });
+      setImportStatus(`取り込み完了（${aggregator.recordCount.toLocaleString("ja-JP")}件のレコードを解析し、この端末に保存しました）。`, "ok");
+    } catch (e) {
+      setImportStatus(`取り込みは完了しましたが、端末への保存に失敗しました（${e.message}）。バックアップの書き出しをおすすめします。`, "err");
+    }
+    hideProgress();
+    q("import-section").classList.add("hidden-section");
+  } catch (e) {
+    setImportStatus(`取り込みに失敗しました：${e.message}`, "err");
+    hideProgress();
+  }
+}
+
+function setBackupStatus(text, cls) {
+  els.backupStatus.textContent = text;
+  els.backupStatus.className = "backup-status" + (cls ? " " + cls : "");
+}
+
+/* --- わたしの情報（プロフィール入力）の検証・保存・再描画 --- */
+const PROFILE_FIELD_RANGES = { age: [5, 120], height: [100, 250], weight: [20, 300] };
+function validateProfileField(name, val) {
+  if (val == null || Number.isNaN(val)) return null; // 未入力はエラーにしない（任意項目）
+  const [min, max] = PROFILE_FIELD_RANGES[name];
+  if (val < min || val > max) return `${min}〜${max}の範囲で入力してください。`;
+  return null;
+}
+function readProfileFromInputs() {
+  const ageRaw = els.profileAge.value.trim();
+  const heightRaw = els.profileHeight.value.trim();
+  const weightRaw = els.profileWeight.value.trim();
+  return {
+    age: ageRaw === "" ? null : Number(ageRaw),
+    height: heightRaw === "" ? null : Number(heightRaw),
+    weight: weightRaw === "" ? null : Number(weightRaw),
+  };
+}
+function populateProfileInputs(profile) {
+  els.profileAge.value = profile && profile.age != null ? profile.age : "";
+  els.profileHeight.value = profile && profile.height != null ? profile.height : "";
+  els.profileWeight.value = profile && profile.weight != null ? profile.weight : "";
+  updateProfileHint(profile);
+}
+function updateProfileHint(profile) {
+  const missing = [];
+  if (!profile || profile.age == null) missing.push("年齢");
+  if (!profile || profile.height == null) missing.push("身長");
+  els.profileHint.textContent = missing.length ? `${missing.join("・")}を入れると精度が上がります。` : "";
+}
+async function handleProfileInputChange() {
+  const { age, height, weight } = readProfileFromInputs();
+  const ageErr = validateProfileField("age", age);
+  const heightErr = validateProfileField("height", height);
+  const weightErr = validateProfileField("weight", weight);
+  els.profileAgeError.textContent = ageErr || "";
+  els.profileHeightError.textContent = heightErr || "";
+  els.profileWeightError.textContent = weightErr || "";
+  els.profileAge.classList.toggle("invalid", !!ageErr);
+  els.profileHeight.classList.toggle("invalid", !!heightErr);
+  els.profileWeight.classList.toggle("invalid", !!weightErr);
+  if (ageErr || heightErr || weightErr) return; // 不正な値の間は保存・再計算しない
+
+  // 手入力体重が変わった（または初めて入れた）ときだけ、その時点の日付を記録する。
+  const prevWeight = currentProfile ? currentProfile.weight : null;
+  const weightDate = weight != null
+    ? (weight !== prevWeight || !currentProfile || !currentProfile.weightDate ? localDateKey(new Date()) : currentProfile.weightDate)
+    : null;
+
+  currentProfile = normalizeProfile({ age, height, weight, weightDate });
+  updateProfileHint(currentProfile);
+  try {
+    await saveProfile(currentProfile);
+    els.profileSaveNote.textContent = "保存しました。";
+  } catch (e) {
+    els.profileSaveNote.textContent = `保存に失敗しました：${e.message}`;
+  }
+  if (currentReportData) {
+    renderReport(currentReportData.dailyMetrics, currentReportData.today, currentReportData.meta, currentProfile);
+  }
+}
+
+function wireUi() {
+  els.dropzone = q("dropzone");
+  els.fileInput = q("file-input");
+  els.dzFilename = q("dz-filename");
+  els.progressWrap = q("progress-wrap");
+  els.progressBar = q("progress-bar");
+  els.progressLabel = q("progress-label");
+  els.importStatus = q("import-status");
+  els.verdictHeadline = q("verdict-headline");
+  els.verdictList = q("verdict-list");
+  els.scoreDetails = q("score-breakdown");
+  els.profileGrid = q("profile-grid");
+  els.findings = q("findings");
+  els.backupStatus = q("backup-status");
+  els.browserWarn = q("browser-warn");
+  els.profileAge = q("profile-age");
+  els.profileHeight = q("profile-height");
+  els.profileWeight = q("profile-weight");
+  els.profileAgeError = q("profile-age-error");
+  els.profileHeightError = q("profile-height-error");
+  els.profileWeightError = q("profile-weight-error");
+  els.profileHint = q("profile-hint");
+  els.profileSaveNote = q("profile-save-note");
+
+  els.profileAge.addEventListener("input", handleProfileInputChange);
+  els.profileHeight.addEventListener("input", handleProfileInputChange);
+  els.profileWeight.addEventListener("input", handleProfileInputChange);
+
+  if (typeof DecompressionStream === "undefined") {
+    els.browserWarn.style.display = "block";
+    els.browserWarn.textContent = "お使いのブラウザは非対応です（ZIP解凍APIが利用できません）。Chrome または Safari の最新版でお試しください。";
+  }
+
+  els.dropzone.addEventListener("click", () => els.fileInput.click());
+  els.dropzone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") els.fileInput.click(); });
+  els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); els.dropzone.classList.add("dragover"); });
+  els.dropzone.addEventListener("dragleave", () => els.dropzone.classList.remove("dragover"));
+  els.dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    els.dropzone.classList.remove("dragover");
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) processZipFile(f);
+  });
+  els.fileInput.addEventListener("change", () => {
+    const f = els.fileInput.files && els.fileInput.files[0];
+    if (f) processZipFile(f);
+  });
+
+  q("reimport-btn").addEventListener("click", () => {
+    q("import-section").classList.remove("hidden-section");
+    window.scrollTo({ top: q("import-section").offsetTop - 10, behavior: "smooth" });
+  });
+
+  q("backup-export-btn").addEventListener("click", async () => {
+    try {
+      const report = currentReportData ? { dailyMetrics: currentReportData.dailyMetrics, today: currentReportData.today, importedAt: currentReportData.meta && currentReportData.meta.importedAt, sourceLabel: currentReportData.meta && currentReportData.meta.sourceLabel } : await loadReport();
+      if (!report) { setBackupStatus("書き出せるデータがありません。先にzipを取り込んでください。", "err"); return; }
+      const blob = buildBackupBlob(report, currentProfile);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = (report.today || "backup").replace(/-/g, "");
+      a.href = url;
+      a.download = `karada-tenken-backup-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setBackupStatus("バックアップを書き出しました。", "ok");
+    } catch (e) {
+      setBackupStatus(`書き出しに失敗しました：${e.message}`, "err");
+    }
+  });
+
+  q("backup-import-btn").addEventListener("click", () => q("backup-file-input").click());
+  q("backup-file-input").addEventListener("change", async () => {
+    const f = q("backup-file-input").files && q("backup-file-input").files[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const parsed = parseBackupJson(text);
+      await saveReport(parsed);
+      if (parsed.profile) {
+        currentProfile = parsed.profile;
+        await saveProfile(currentProfile);
+        populateProfileInputs(currentProfile);
+      }
+      renderReport(parsed.dailyMetrics, parsed.today, { importedAt: parsed.importedAt, sourceLabel: parsed.sourceLabel }, currentProfile);
+      q("import-section").classList.add("hidden-section");
+      setBackupStatus("バックアップから復元しました。", "ok");
+    } catch (e) {
+      setBackupStatus(`読み込みに失敗しました：${e.message}`, "err");
+    } finally {
+      q("backup-file-input").value = "";
+    }
+  });
+
+  q("delete-data-btn").addEventListener("click", async () => {
+    if (!window.confirm("保存データを消します。よろしいですか？（バックアップを書き出していない場合は復元できません）")) return;
+    try {
+      await deleteReport();
+      currentReportData = null;
+      document.getElementById("report-root").classList.add("hidden-section");
+      q("saved-badge").style.display = "none";
+      q("import-section").classList.remove("hidden-section");
+      setBackupStatus("保存データを消しました。", "ok");
+    } catch (e) {
+      setBackupStatus(`削除に失敗しました：${e.message}`, "err");
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (currentReportData) {
+      const verdicts = buildVerdicts(currentReportData.dailyMetrics, currentReportData.today, currentReportData.profile);
+      const { charts, recentCutoff } = buildChartPackage(currentReportData.dailyMetrics, currentReportData.today, verdicts);
+      renderCharts(charts, recentCutoff);
+    }
+  });
+}
+
+async function initApp() {
+  wireUi();
+  try {
+    currentProfile = await loadProfile();
+  } catch (e) {
+    console.warn("プロフィールの読み込みに失敗しました:", e);
+    currentProfile = normalizeProfile(null);
+  }
+  populateProfileInputs(currentProfile);
+  try {
+    const stored = await loadReport();
+    if (stored) {
+      renderReport(stored.dailyMetrics, stored.today, { importedAt: stored.importedAt, sourceLabel: stored.sourceLabel }, currentProfile);
+      q("import-section").classList.add("hidden-section");
+    }
+  } catch (e) {
+    // IndexedDB未対応・初回起動時のエラーは致命的ではない。取り込みUIをそのまま表示する。
+    console.warn("保存データの読み込みに失敗しました:", e);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", initApp);
+</script>
+<script>
+// オフライン対応（https配信時のみ。LAN/httpでは登録しない）
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW登録失敗:", e));
+  });
+}
+</script>
+</body>
+</html>

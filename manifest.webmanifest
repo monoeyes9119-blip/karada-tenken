@@ -1,0 +1,14 @@
+{
+  "name": "からだ点検",
+  "short_name": "からだ点検",
+  "description": "Appleヘルスケアの書き出しデータを端末内だけで解析する健康レポート。月に一度、からだの定期点検。",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#faf4e9",
+  "theme_color": "#faf4e9",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
