@@ -324,6 +324,30 @@ canvas { width: 100%; display: block; }
 .backup-status:empty { display: none; }
 input[type="file"].hidden-file { display: none; }
 
+/* --- 点検結果（答え合わせループ） --- */
+.inspect-card h2 { font-size: 15px; margin: 0 0 12px; font-weight: 700; color: var(--text-main); }
+.inspect-overall { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.inspect-overall .io-nums { font-size: 28px; font-weight: 700; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.inspect-delta { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.inspect-delta.up { color: var(--excellent); }
+.inspect-delta.down { color: var(--warn); }
+.inspect-delta.flat, .inspect-delta.na { color: var(--text-faint); }
+.inspect-items-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.inspect-item { flex: 1 1 130px; background: var(--bg); border-radius: 14px; padding: 10px 12px; }
+.inspect-item .ii-label { font-size: 11px; color: var(--text-sub); margin-bottom: 4px; }
+.inspect-item .ii-values { font-size: 15px; font-weight: 700; color: var(--text-main); font-variant-numeric: tabular-nums; margin-bottom: 2px; }
+.inspect-answercheck { background: var(--bg); border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; font-size: 13px; color: var(--text-main); line-height: 1.75; }
+.inspect-answercheck .aw-prev { color: var(--text-sub); margin-bottom: 4px; }
+.inspect-answercheck .aw-result strong { color: var(--accent-text); }
+.inspect-note { font-size: 11.5px; color: var(--text-faint); margin-top: 8px; }
+.inspect-homework { background: var(--accent-soft); border-radius: 16px; padding: 16px 18px; }
+.inspect-homework .hw-heading { font-size: 11.5px; font-weight: 700; color: var(--accent-text); letter-spacing: .04em; margin-bottom: 6px; }
+.inspect-homework .hw-label { font-size: 17px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
+.inspect-homework .hw-target { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.inspect-homework .hw-cue { font-size: 12.5px; color: var(--text-main); line-height: 1.7; }
+.inspect-next-date { font-size: 11.5px; color: var(--text-faint); margin-top: 14px; text-align: right; }
+.inspect-first-msg { font-size: 14px; font-weight: 600; color: var(--text-main); background: var(--bg); border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; line-height: 1.7; }
+
 .hidden-section { display: none; }
 
 footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin-top: 30px; }
@@ -448,6 +472,8 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
   </details>
 
   <div id="report-root" class="hidden-section">
+    <div id="inspection-root"></div>
+
     <section class="panel">
       <h2><span class="num">01</span>総合判定</h2>
       <div class="panel-sub">開いた瞬間にわかる、今の体の状態。満点は「明確に良い水準」に届いたときだけ出ます。健康な人でも70〜85点になるのが普通です。</div>
@@ -475,8 +501,22 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
       <div id="findings" class="findings empty">所見は未生成</div>
     </section>
 
+    <section class="panel hidden-section" id="trend-panel">
+      <h2><span class="num">04</span>推移</h2>
+      <div class="panel-sub">点検日ごとの総合点・項目別スコアの推移（履歴が2件以上のとき表示）</div>
+      <div class="chart-card">
+        <div class="chart-title">総合点の推移</div>
+        <canvas id="chart-trend-overall"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">項目別スコアの推移</div>
+        <div class="chart-sub">活動量・歩きの質・体組成・回復系</div>
+        <canvas id="chart-trend-items"></canvas>
+      </div>
+    </section>
+
     <section class="panel">
-      <h2><span class="num">04</span>活動量</h2>
+      <h2><span class="num">05</span>活動量</h2>
       <div class="panel-sub">歩数の月中央値トレンド</div>
       <div class="chart-card">
         <div class="chart-title" id="steps-title"></div>
@@ -1017,7 +1057,9 @@ function classifyGaitQuality(dm, today, profile) {
   const avail = items.filter((it) => it.score != null);
   if (!avail.length) {
     return { ...scoreToStatus(null), reason: `直近${th.window_days}日の歩行関連データが不足しています。`,
-      score: null, breakdown: [`直近${th.window_days}日の左右非対称性・歩行速度・両脚支持時間・歩幅のいずれも測定データが無いため採点できません。`] };
+      score: null, breakdown: [`直近${th.window_days}日の左右非対称性・歩行速度・両脚支持時間・歩幅のいずれも測定データが無いため採点できません。`],
+      asym_median: asymMed, speed_median: speedMed, dsupport_median: dsupportMed, steplen_median: steplenMed,
+      item_scores: { asym: asymScore, speed: speedScore, dsupport: dsupportScore, steplen: steplenScore } };
   }
   const totalWeight = avail.reduce((s, it) => s + it.weight, 0);
   const rawTotal = weightedAverageScore(items);
@@ -1036,7 +1078,9 @@ function classifyGaitQuality(dm, today, profile) {
   breakdown.push(`合計：${score}点`);
 
   const reason = `直近${th.window_days}日の左右非対称性${asymMed != null ? ` 中央値${asymMed.toFixed(2)}%` : "データなし"}・歩行速度${speedMed != null ? ` 中央値${speedMed.toFixed(2)}m/s` : "データなし"}`;
-  return { ...scoreToStatus(score), reason, score, breakdown, asym_median: asymMed, speed_median: speedMed };
+  return { ...scoreToStatus(score), reason, score, breakdown, asym_median: asymMed, speed_median: speedMed,
+    dsupport_median: dsupportMed, steplen_median: steplenMed,
+    item_scores: { asym: asymScore, speed: speedScore, dsupport: dsupportScore, steplen: steplenScore } };
 }
 function classifyActivity(dm, today) {
   const th = JUDGMENT_THRESHOLDS.activity;
@@ -1091,9 +1135,11 @@ function classifyBodyComp(dm, today, profile) {
   const sex = profile && (profile.sex === "male" || profile.sex === "female") ? profile.sex : null;
   let score = null;
   let breakdown;
+  let bmiValue = null;
   if (height != null && eff != null) {
     const heightM = height / 100;
     const bmi = eff.value / (heightM * heightM);
+    bmiValue = bmi;
     const bmiScore = scoreFromAnchors(bmi, bc.bmi_anchors);
     const weightText = `体重${eff.value.toFixed(1)}kg${eff.manual ? "（手入力）" : "（ヘルスケアデータ）"}・身長${height}cmからBMI ${bmi.toFixed(1)}`;
     if (fatMed != null && sex != null) {
@@ -1121,7 +1167,7 @@ function classifyBodyComp(dm, today, profile) {
   const reason = height != null && eff != null
     ? `BMI ${(eff.value / Math.pow(height / 100, 2)).toFixed(1)}・体脂肪率${fatMed != null ? `中央値${fatMed.toFixed(1)}%` : "データなし"}`
     : "身長と体重を入れると採点できます（判定不能）";
-  return { ...scoreToStatus(score), reason, score, breakdown, fat_median: fatMed, weight_max_dev: maxDev };
+  return { ...scoreToStatus(score), reason, score, breakdown, fat_median: fatMed, weight_max_dev: maxDev, bmi: bmiValue };
 }
 function classifyRecovery(dm, today, profile) {
   const th = JUDGMENT_THRESHOLDS.recovery;
@@ -1397,13 +1443,14 @@ function buildFindings(dm, today, verdicts) {
     : rhrMed30 != null ? `直近30日の安静時心拍中央値は${rhrMed30.toFixed(0)}bpm${hrvMed30 != null ? `、HRV中央値は${hrvMed30.toFixed(0)}ms` : ""}です。`
     : "安静時心拍・HRVのデータが直近30日で不足しています。";
 
+  // 具体的な目標値は「点検結果」カードの宿題が担う。ここでは背景説明に留め、重複させない。
   let nextAction;
   if (!isPositiveLevel(verdicts.activity.level) && steps90 != null) {
-    nextAction = `次の一手は、1日あたりの歩数を直近90日中央値${Math.round(steps90).toLocaleString("ja-JP")}歩付近へ戻すことです。そのうえで左右非対称性・歩行速度が今の水準で保たれるかを確認すると、量の不足か歩行機能の変化かを切り分けやすくなります。`;
+    nextAction = "歩数がここ最近の落ち着いた水準よりやや少なめです。左右非対称性・歩行速度が今の水準で保たれているかもあわせて見ておくと、量の不足か歩行機能の変化かを切り分けやすくなります。";
   } else if (verdicts.recovery.level === "gray") {
-    nextAction = "次の一手は、Watch装着日を増やして回復系データ（安静時心拍・HRV）の蓄積を進めることです。";
+    nextAction = "Watch装着日を増やすと、回復系データ（安静時心拍・HRV）も判定できるようになります。";
   } else {
-    nextAction = "次の一手は、この水準を維持しつつ、次回の計測でも同じ傾向が続くか確認することです。";
+    nextAction = "この水準を維持しつつ、次回の計測でも同じ傾向が続くか確認しましょう。";
   }
 
   return { oneLiner, gaitBullet, activityBullet, recoveryBullet, nextAction,
@@ -1411,25 +1458,179 @@ function buildFindings(dm, today, verdicts) {
 }
 
 /* =========================================================================
+   PART A.5: 答え合わせループ（点検結果カード）
+   採点ロジック本体（classify*系・SCORE_RULES・scoreFromAnchors）には一切触れず、
+   すでに計算済みの verdicts から必要な値を取り出すだけの読み取り専用レイヤー。
+   ========================================================================= */
+function buildScoresSnapshot(verdicts) {
+  const overall = computeOverallScore(verdicts);
+  return {
+    overall: overall ? overall.score : null,
+    activity: verdicts.activity.score,
+    gait: verdicts.gait.score,
+    bodyComp: verdicts.body_comp.score,
+    recovery: verdicts.recovery.score,
+  };
+}
+function buildMetricsSnapshot(verdicts) {
+  return {
+    steps30dMedian: verdicts.activity.steps_median != null ? verdicts.activity.steps_median : null,
+    asym90dMedian: verdicts.gait.asym_median != null ? verdicts.gait.asym_median : null,
+    speed90dMedian: verdicts.gait.speed_median != null ? verdicts.gait.speed_median : null,
+    stepLengthCm: verdicts.gait.steplen_median != null ? verdicts.gait.steplen_median : null,
+    doubleSupport90dMedian: verdicts.gait.dsupport_median != null ? verdicts.gait.dsupport_median : null,
+    bmi: verdicts.body_comp.bmi != null ? verdicts.body_comp.bmi : null,
+    rhrMedian: verdicts.recovery.rhr_median != null ? verdicts.recovery.rhr_median : null,
+    recoveryDays: verdicts.recovery.measured_days != null ? verdicts.recovery.measured_days : null,
+  };
+}
+
+// 「最も点数の低い項目」から1つだけ選ぶ。材料不足(null)の項目は原則除外する。
+// 例外は回復系だけ：材料不足でも除外せず「優先度2位」として割り込ませる——
+// 他の3項目（活動量・歩きの質・体組成）のうち最も緊急度が高い1項目があればそちらを優先し、
+// 他に候補が無い（3項目とも材料不足）ときだけ回復系（Watch装着を促す宿題）が選ばれる。
+// 回復系に「実測スコアはあるが低い」場合の宿題ルールは仕様上定義されていないため、
+// 回復系はスコアがあってもargminの対象には含めない（材料不足のときの特例のみ）。
+function pickHomeworkCategory(scores) {
+  const others = ["activity", "gait", "bodyComp"]
+    .map((key) => ({ key, score: scores[key] }))
+    .filter((it) => it.score != null)
+    .sort((a, b) => a.score - b.score);
+  if (scores.recovery == null) return others.length ? others[0].key : "recovery";
+  return others.length ? others[0].key : null;
+}
+function pickWeakestGaitItem(itemScores) {
+  const order = ["steplen", "speed", "asym", "dsupport"];
+  const avail = order.map((k) => ({ key: k, score: (itemScores || {})[k] })).filter((it) => it.score != null);
+  if (!avail.length) return null;
+  avail.sort((a, b) => a.score - b.score);
+  return avail[0].key;
+}
+const HOMEWORK_UNIT = {
+  steps30dMedian: "歩", stepLengthCm: "cm", speed90dMedian: "m/s",
+  asym90dMedian: "%", doubleSupport90dMedian: "%", bmi: "", recoveryDays: "日",
+};
+const HOMEWORK_DECIMALS = {
+  steps30dMedian: 0, stepLengthCm: 0, speed90dMedian: 2,
+  asym90dMedian: 2, doubleSupport90dMedian: 1, bmi: 1, recoveryDays: 0,
+};
+// 宿題は必ず1つだけ。心理学者脳§2：If-Thenプラン（いつ・どこで・何を）＋「〜してみませんか」の非強制トーン。
+function generateHomework(scores, metrics, verdicts) {
+  const category = pickHomeworkCategory(scores);
+  if (!category) return null;
+
+  if (category === "activity") {
+    const baseline = metrics.steps30dMedian;
+    if (baseline == null) return null;
+    const target = Math.min(baseline + 1500, 8000);
+    return { key: "steps30dMedian", label: "1日あたり +1,500歩", baseline, target, unit: HOMEWORK_UNIT.steps30dMedian, direction: "up",
+      cue: "昼休みの終わりに、いつもの道を1本遠回りしてみませんか。" };
+  }
+  if (category === "gait") {
+    const weak = pickWeakestGaitItem(verdicts && verdicts.gait && verdicts.gait.item_scores);
+    if (weak === "steplen") {
+      const baseline = metrics.stepLengthCm;
+      if (baseline == null) return null;
+      return { key: "stepLengthCm", label: "歩幅を +3cm", baseline, target: baseline + 3, unit: HOMEWORK_UNIT.stepLengthCm, direction: "up",
+        cue: "改札や信号待ちで、いつもより半歩大きく踏み出してみませんか。" };
+    }
+    if (weak === "speed") {
+      const baseline = metrics.speed90dMedian;
+      if (baseline == null) return null;
+      return { key: "speed90dMedian", label: "歩行速度を +0.05m/s", baseline, target: Math.round((baseline + 0.05) * 100) / 100, unit: HOMEWORK_UNIT.speed90dMedian, direction: "up",
+        cue: "駅までの道を、少しだけ早歩きにしてみませんか。" };
+    }
+    if (weak === "asym") {
+      const baseline = metrics.asym90dMedian;
+      if (baseline == null) return null;
+      return { key: "asym90dMedian", label: "左右差を 2% 未満へ", baseline, target: Math.min(baseline, 2.0), unit: HOMEWORK_UNIT.asym90dMedian, direction: "down",
+        cue: "歩くとき、痛みや違和感のある側をかばいすぎていないか、時々意識してみませんか。" };
+    }
+    if (weak === "dsupport") {
+      const baseline = metrics.doubleSupport90dMedian;
+      if (baseline == null) return null;
+      return { key: "doubleSupport90dMedian", label: "両脚支持時間を -1%", baseline, target: baseline - 1, unit: HOMEWORK_UNIT.doubleSupport90dMedian, direction: "down",
+        cue: "信号待ちの間、手すりや壁の近くで片脚立ちを短く試してみませんか。" };
+    }
+    return null;
+  }
+  if (category === "bodyComp") {
+    const baseline = metrics.bmi;
+    if (baseline == null) return null;
+    let direction, target;
+    if (baseline < 21) { direction = "up"; target = Math.min(baseline + 1.0, 21); }
+    else if (baseline > 23) { direction = "down"; target = Math.max(baseline - 1.0, 23); }
+    else if (baseline < 22) { direction = "up"; target = Math.min(baseline + 1.0, 23); }
+    else { direction = "down"; target = Math.max(baseline - 1.0, 21); }
+    const cue = direction === "up" ? "食事の量を少しだけ増やしてみませんか。特にタンパク質を意識して。" : "間食を、いつもより少し控えめにしてみませんか。";
+    return { key: "bmi", label: "BMI 21〜23に向けて ±1.0", baseline, target, unit: HOMEWORK_UNIT.bmi, direction, cue };
+  }
+  if (category === "recovery") {
+    const baseline = metrics.recoveryDays != null ? metrics.recoveryDays : 0;
+    return { key: "recoveryDays", label: "Watchを着けて眠る日を 月10日以上に", baseline, target: 10, unit: HOMEWORK_UNIT.recoveryDays, direction: "up",
+      cue: "寝る前にWatchを着ける習慣を、まず今夜から始めてみませんか。" };
+  }
+  return null;
+}
+// 達成率 = (今回値-baseline) / (target-baseline)。direction=downのときは target-baseline 自体が負になるため、
+// 同じ式のまま符号が自然に揃う（分子分母とも符号反転＝比は不変）。0/1にクランプせず実際の値をそのまま返す。
+function evaluateHomework(homework, metrics) {
+  if (!homework) return null;
+  const current = metrics ? metrics[homework.key] : null;
+  if (current == null || typeof current !== "number" || Number.isNaN(current)) {
+    return { status: "unknown", rate: null, current: null, delta: null };
+  }
+  const { baseline, target, direction } = homework;
+  let rate;
+  if (target === baseline) {
+    if (current === baseline) rate = 1;
+    else rate = (direction === "down" ? current < baseline : current > baseline) ? 1 : -1;
+  } else {
+    rate = (current - baseline) / (target - baseline);
+  }
+  let status;
+  if (rate >= 1) status = "achieved";
+  else if (rate >= 0.5) status = "progress";
+  else if (rate >= 0) status = "slight";
+  else status = "regress";
+  return { status, rate, current, delta: current - baseline };
+}
+async function recordHistoryEntry(dailyMetrics, today, profile, importedAtIso) {
+  const verdicts = buildVerdicts(dailyMetrics, today, profile);
+  const scores = buildScoresSnapshot(verdicts);
+  const metrics = buildMetricsSnapshot(verdicts);
+  const homework = generateHomework(scores, metrics, verdicts);
+  const entry = { date: today, importedAt: importedAtIso, scores, metrics, homework };
+  await saveHistoryEntry(entry);
+  return entry;
+}
+
+/* =========================================================================
    PART B: IndexedDB永続化＋バックアップJSON往復
    ========================================================================= */
 
 const DB_NAME = "karada-log-webapp";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = "reports";
 const RECORD_KEY = "current";
 const SCHEMA_VERSION = 1;
 const PROFILE_STORE = "profile";
 const PROFILE_KEY = "current";
+const HISTORY_STORE = "history";
 
 function openDb() {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === "undefined") { reject(new Error("このブラウザはIndexedDBに対応していません。")); return; }
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
+    // 加算的マイグレーションのみ：既存ストア（reports/profile）には一切触れない。
+    // v2→v3の昇格・DB未作成からの新規作成のどちらでも、無いストアだけを作る。
+    req.onupgradeneeded = (event) => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
       if (!db.objectStoreNames.contains(PROFILE_STORE)) db.createObjectStore(PROFILE_STORE);
+      if (event.oldVersion < 3 && !db.objectStoreNames.contains(HISTORY_STORE)) {
+        db.createObjectStore(HISTORY_STORE, { keyPath: "date" });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error || new Error("IndexedDBを開けませんでした"));
@@ -1468,6 +1669,43 @@ async function deleteReport() {
     await new Promise((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
   } finally { db.close(); }
 }
+// --- 点検履歴（history）。取り込み成功時のみ追記する（デモ表示・バックアップ復元では追記しない）。
+// keyPath=date（取り込み日）。putは同じdateキーを上書きするため、同日に2回取り込んでも重複しない（冪等）。
+async function saveHistoryEntry(entry) {
+  const db = await openDb();
+  try {
+    const tx = db.transaction(HISTORY_STORE, "readwrite");
+    await idbRequest(tx.objectStore(HISTORY_STORE).put(entry));
+    await new Promise((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+  } finally { db.close(); }
+}
+async function loadHistory() {
+  const db = await openDb();
+  try {
+    const tx = db.transaction(HISTORY_STORE, "readonly");
+    const rows = await idbRequest(tx.objectStore(HISTORY_STORE).getAll());
+    return (rows || []).slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  } finally { db.close(); }
+}
+async function deleteHistory() {
+  const db = await openDb();
+  try {
+    const tx = db.transaction(HISTORY_STORE, "readwrite");
+    await idbRequest(tx.objectStore(HISTORY_STORE).clear());
+    await new Promise((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+  } finally { db.close(); }
+}
+// バックアップ復元専用：新規追記ではなく、バックアップに入っていた履歴でストア全体を置き換える（宣言的・冪等）。
+async function replaceHistory(entries) {
+  const db = await openDb();
+  try {
+    const tx = db.transaction(HISTORY_STORE, "readwrite");
+    const store = tx.objectStore(HISTORY_STORE);
+    await idbRequest(store.clear());
+    for (const e of entries) await idbRequest(store.put(e));
+    await new Promise((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+  } finally { db.close(); }
+}
 // --- わたしの情報（プロフィール）。健康データ（reports）とは別ストアに保存する。
 // 「保存データを消す」（health importの削除）でプロフィールまでは消えない設計。
 function normalizeProfile(p) {
@@ -1498,13 +1736,19 @@ async function loadProfile() {
     return normalizeProfile(result);
   } finally { db.close(); }
 }
-function buildBackupBlob(report, profile) {
+function buildBackupBlob(report, profile, history) {
   const json = JSON.stringify({
     schemaVersion: SCHEMA_VERSION, kind: "karada-log-webapp-backup",
     dailyMetrics: report.dailyMetrics, today: report.today, importedAt: report.importedAt, sourceLabel: report.sourceLabel,
     profile: profile ? normalizeProfile(profile) : null,
+    history: Array.isArray(history) ? history : [],
   });
   return new Blob([json], { type: "application/json" });
+}
+// 境界での検証（Parse, don't validate）：形の不正な履歴レコードはここで弾き、内側には安全な形だけを通す。
+function isValidHistoryEntry(e) {
+  return !!(e && typeof e === "object" && typeof e.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.date)
+    && e.scores && typeof e.scores === "object" && e.metrics && typeof e.metrics === "object");
 }
 function parseBackupJson(text) {
   let obj;
@@ -1518,6 +1762,8 @@ function parseBackupJson(text) {
     importedAt: typeof obj.importedAt === "string" ? obj.importedAt : new Date().toISOString(),
     sourceLabel: typeof obj.sourceLabel === "string" ? obj.sourceLabel : "バックアップから復元",
     profile: obj.profile ? normalizeProfile(obj.profile) : null,
+    // 履歴キーが無い旧形式バックアップは空配列として扱う（後方互換）
+    history: Array.isArray(obj.history) ? obj.history.filter(isValidHistoryEntry) : [],
   };
 }
 
@@ -1721,6 +1967,195 @@ function drawPointChart(canvasId, seriesList, opts) {
     s.data.forEach(([d, v]) => { ctx.beginPath(); ctx.arc(xOf(d), yOf(v), 2.8, 0, Math.PI * 2); ctx.fill(); });
   });
 }
+// 点検結果カードの推移グラフ用。DPR対応のcanvasセットアップ・グリッド・年軸目盛りは
+// drawMonthlyChart/drawPointChartと同じヘルパー（niceScale/tickDecimals/fmtTick/drawYearAxis/cssVar）を再利用し、
+// 複数系列を折れ線＋直接ラベルで描く点だけがこの関数固有（凡例より直接ラベル：designer-brain §4）。
+function drawHistoryLineChart(canvasId, seriesList, opts) {
+  opts = opts || {};
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 320;
+  const cssHeight = opts.height || 180;
+  canvas.width = Math.round(cssWidth * dpr); canvas.height = Math.round(cssHeight * dpr); canvas.style.height = cssHeight + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  const padL = 34, padR /* 直接ラベル用の余白 */ = 40, padT = 12, padB = 20;
+  const w = cssWidth - padL - padR, h = cssHeight - padT - padB;
+  const gridColor = cssVar("--grid"), textColor = cssVar("--text-faint");
+  const allPoints = seriesList.flatMap((s) => s.data.filter(([, v]) => v != null));
+  if (!allPoints.length) {
+    ctx.fillStyle = textColor; ctx.font = "12px sans-serif"; ctx.fillText("データなし", padL, padT + h / 2);
+    return;
+  }
+  const vals = allPoints.map((p) => p[1]);
+  const scale = niceScale(Math.min(...vals), Math.max(...vals), { targetTicks: 3, yMin: opts.yMin, yMax: opts.yMax, zeroBase: !!opts.zeroBase });
+  const vMin = scale.lo, vMax = scale.hi;
+  const allDates = seriesList.flatMap((s) => s.data.map((p) => p[0])).sort();
+  const dMin = allDates[0], dMax = allDates[allDates.length - 1];
+  const tMin = parseDateLocal(dMin).getTime(), tMax = parseDateLocal(dMax).getTime();
+  const tSpan = Math.max(1, tMax - tMin);
+  function xOf(d) { return padL + ((parseDateLocal(d).getTime() - tMin) / tSpan) * w; }
+  function yOf(v) { return padT + h - ((v - vMin) / (vMax - vMin)) * h; }
+  ctx.strokeStyle = gridColor; ctx.fillStyle = textColor; ctx.font = "11px sans-serif"; ctx.lineWidth = 1;
+  scale.ticks.forEach((v) => {
+    const y = yOf(v);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + w, y); ctx.stroke();
+    ctx.fillText(fmtTick(v, scale.decimals), 2, y + 3);
+  });
+  drawYearAxis(ctx, xOf, dMin, dMax, padL, w, padT, h, cssHeight, gridColor, textColor, (y) => y + "-01-01");
+  seriesList.forEach((s) => {
+    const pts = s.data.filter(([, v]) => v != null);
+    if (!pts.length) return;
+    ctx.strokeStyle = s.color; ctx.lineWidth = s.bold ? 2.4 : 1.8;
+    ctx.beginPath();
+    pts.forEach(([d, v], i) => { const x = xOf(d), y = yOf(v); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.stroke();
+    ctx.fillStyle = s.color;
+    pts.forEach(([d, v]) => { ctx.beginPath(); ctx.arc(xOf(d), yOf(v), 2.6, 0, Math.PI * 2); ctx.fill(); });
+    const last = pts[pts.length - 1];
+    ctx.font = "bold 10.5px sans-serif"; ctx.textAlign = "left";
+    ctx.fillText(s.label, Math.min(xOf(last[0]) + 4, cssWidth - 4), yOf(last[1]) + 3);
+  });
+  ctx.textAlign = "left";
+}
+function drawHistoryTrendCharts(history) {
+  const overallSeries = [{ data: history.map((e) => [e.date, e.scores.overall]), color: cssVar("--accent"), label: "総合", bold: true }];
+  drawHistoryLineChart("chart-trend-overall", overallSeries, { height: 180, yMin: 0, yMax: 100 });
+  const itemColors = { activity: cssVar("--accent"), gait: cssVar("--line2"), bodyComp: cssVar("--good"), recovery: cssVar("--watch") };
+  const itemSeries = ["activity", "gait", "bodyComp", "recovery"].map((key) => ({
+    data: history.map((e) => [e.date, e.scores[key]]), color: itemColors[key], label: ITEM_LABELS[key],
+  }));
+  drawHistoryLineChart("chart-trend-items", itemSeries, { height: 200, yMin: 0, yMax: 100 });
+}
+
+/* =========================================================================
+   PART C.5: 点検結果カードのHTML組み立て（答え合わせの文言・前回比・宿題の表示）
+   ========================================================================= */
+const ITEM_LABELS = { activity: "活動量", gait: "歩きの質", bodyComp: "体組成", recovery: "回復系" };
+const HOMEWORK_STATUS_LABEL = { achieved: "達成", progress: "前進", slight: "わずかに前進", regress: "後退" };
+function fmtHomeworkValue(key, v) {
+  if (v == null) return "-";
+  const d = HOMEWORK_DECIMALS[key] != null ? HOMEWORK_DECIMALS[key] : 1;
+  return Number(v.toFixed(d)).toLocaleString("ja-JP", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function fmtNextCheckDate(dateStr) {
+  const d = parseDateLocal(addDaysIso(dateStr, 30));
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+function daysBetween(a, b) { return Math.round((parseDateLocal(b) - parseDateLocal(a)) / 86400000); }
+function scoreDeltaHtml(prevScore, curScore) {
+  if (prevScore == null || curScore == null) return `<span class="inspect-delta na">—</span>`;
+  const diff = curScore - prevScore;
+  const cls = diff > 0 ? "up" : diff < 0 ? "down" : "flat";
+  const symbol = diff > 0 ? "▲" : diff < 0 ? "▼" : "―";
+  const sign = diff > 0 ? "+" : "";
+  return `<span class="inspect-delta ${cls}">${symbol} ${sign}${diff}</span>`;
+}
+function buildInspectItemsRowHtml(prevScores, curScores) {
+  return ["activity", "gait", "bodyComp", "recovery"].map((key) => {
+    const p = prevScores[key], c = curScores[key];
+    const pText = p != null ? p : "—", cText = c != null ? c : "—";
+    return `<div class="inspect-item">
+      <div class="ii-label">${ITEM_LABELS[key]}</div>
+      <div class="ii-values">${pText} → ${cText}</div>
+      ${scoreDeltaHtml(p, c)}
+    </div>`;
+  }).join("");
+}
+function buildAnswerCheckHtml(prevHomework, currentMetrics, daysSinceImport) {
+  if (!prevHomework) return "";
+  const evalResult = evaluateHomework(prevHomework, currentMetrics);
+  const unit = prevHomework.unit || "";
+  const baselineText = fmtHomeworkValue(prevHomework.key, prevHomework.baseline) + unit;
+  const targetText = fmtHomeworkValue(prevHomework.key, prevHomework.target) + unit;
+  let resultLine;
+  if (!evalResult || evalResult.status === "unknown") {
+    resultLine = `結果：今回のデータでは判定できませんでした`;
+  } else {
+    const curText = fmtHomeworkValue(prevHomework.key, evalResult.current) + unit;
+    const deltaSign = evalResult.delta >= 0 ? "+" : "-";
+    const deltaText = deltaSign + fmtHomeworkValue(prevHomework.key, Math.abs(evalResult.delta)) + unit;
+    const ratePct = Math.round(evalResult.rate * 100);
+    const statusLabel = HOMEWORK_STATUS_LABEL[evalResult.status];
+    resultLine = `結果：${curText}（${deltaText}・達成率${ratePct}%）→ <strong>${statusLabel}</strong>`;
+  }
+  const noteHtml = daysSinceImport != null && daysSinceImport < 7
+    ? `<div class="inspect-note">前回から${daysSinceImport}日しか経っていないため、変化は測定のばらつきの範囲かもしれません。</div>` : "";
+  return `<div class="inspect-answercheck">
+    <div class="aw-prev">先月の宿題：${prevHomework.label}（${baselineText} → ${targetText}）</div>
+    <div class="aw-result">${resultLine}</div>
+    ${noteHtml}
+  </div>`;
+}
+function buildHomeworkBoxHtml(homework, heading) {
+  if (!homework) return "";
+  const unit = homework.unit || "";
+  return `<div class="inspect-homework">
+    <div class="hw-heading">${heading}</div>
+    <div class="hw-label">${homework.label}</div>
+    <div class="hw-target">目標：${fmtHomeworkValue(homework.key, homework.baseline)}${unit} → ${fmtHomeworkValue(homework.key, homework.target)}${unit}</div>
+    <div class="hw-cue">${homework.cue}</div>
+  </div>`;
+}
+let lastRenderedHistory = null;
+function renderInspectionCard(history) {
+  const root = els.inspectionRoot;
+  const trendSection = q("trend-panel");
+  if (!root) return;
+  if (!history || history.length === 0) {
+    root.innerHTML = "";
+    lastRenderedHistory = null;
+    if (trendSection) trendSection.classList.add("hidden-section");
+    return;
+  }
+  const latest = history[history.length - 1];
+  if (history.length === 1) {
+    root.innerHTML = `<section class="panel inspect-card inspect-first">
+      <div class="inspect-first-msg">今回が最初の点検です。次回の点検で、前回との比較と宿題の答え合わせが出ます。</div>
+      ${buildHomeworkBoxHtml(latest.homework, "今回の宿題")}
+      <div class="inspect-next-date">次回点検：${fmtNextCheckDate(latest.date)}</div>
+    </section>`;
+    lastRenderedHistory = null;
+    if (trendSection) trendSection.classList.add("hidden-section");
+    return;
+  }
+  const prev = history[history.length - 2];
+  const daysSince = daysBetween(prev.date, latest.date);
+  root.innerHTML = `<section class="panel inspect-card">
+    <h2>前回（${prev.date}）からの変化</h2>
+    <div class="inspect-overall">
+      <span class="io-nums">${prev.scores.overall != null ? prev.scores.overall : "—"} → ${latest.scores.overall != null ? latest.scores.overall : "—"}</span>
+      ${scoreDeltaHtml(prev.scores.overall, latest.scores.overall)}
+    </div>
+    <div class="inspect-items-row">${buildInspectItemsRowHtml(prev.scores, latest.scores)}</div>
+    ${buildAnswerCheckHtml(prev.homework, latest.metrics, daysSince)}
+    ${buildHomeworkBoxHtml(latest.homework, "今回の宿題")}
+    <div class="inspect-next-date">次回点検：${fmtNextCheckDate(latest.date)}</div>
+  </section>`;
+  lastRenderedHistory = history;
+  if (trendSection) {
+    trendSection.classList.remove("hidden-section");
+    drawHistoryTrendCharts(history);
+  }
+}
+// サンプル表示専用の架空履歴（2件）。IndexedDBには一切書き込まない。
+// 数値はC節の答え合わせ例（4,100→5,600歩・実測5,300歩・達成率80%・前進）と揃えてある。
+function buildDemoHistory() {
+  const today = localDateKey(new Date());
+  const prevDate = addDaysIso(today, -32);
+  const prevScores = { overall: 67, activity: 51, gait: 74, bodyComp: 77, recovery: null };
+  const prevMetrics = { steps30dMedian: 4100, asym90dMedian: 2.3, speed90dMedian: 1.16, stepLengthCm: 64, doubleSupport90dMedian: 27.8, bmi: 22.6, rhrMedian: null, recoveryDays: 4 };
+  const prevHomework = generateHomework(prevScores, prevMetrics, { gait: { item_scores: {} } });
+  const curScores = { overall: 70, activity: 66, gait: 78, bodyComp: 79, recovery: 58 };
+  const curMetrics = { steps30dMedian: 5300, asym90dMedian: 2.0, speed90dMedian: 1.20, stepLengthCm: 66, doubleSupport90dMedian: 26.5, bmi: 22.3, rhrMedian: 56, recoveryDays: 14 };
+  const curHomework = generateHomework(curScores, curMetrics, { gait: { item_scores: {} } });
+  return [
+    { date: prevDate, importedAt: new Date(Date.now() - 32 * 86400000).toISOString(), scores: prevScores, metrics: prevMetrics, homework: prevHomework },
+    { date: today, importedAt: new Date().toISOString(), scores: curScores, metrics: curMetrics, homework: curHomework },
+  ];
+}
 
 /* =========================================================================
    PART D: UI制御（画面の状態遷移・イベント配線）
@@ -1915,6 +2350,14 @@ async function processZipFile(file) {
 
     try {
       await saveReport({ dailyMetrics, today, importedAt: meta.importedAt, sourceLabel: meta.sourceLabel });
+      let history = [];
+      try {
+        await recordHistoryEntry(dailyMetrics, today, currentProfile, meta.importedAt);
+        history = await loadHistory();
+      } catch (histErr) {
+        console.warn("点検履歴の保存に失敗しました:", histErr);
+      }
+      renderInspectionCard(history);
       setImportStatus(`取り込み完了（${aggregator.recordCount.toLocaleString("ja-JP")}件のレコードを解析し、この端末に保存しました）。`, "ok");
     } catch (e) {
       setImportStatus(`取り込みは完了しましたが、端末への保存に失敗しました（${e.message}）。バックアップの書き出しをおすすめします。`, "err");
@@ -2041,13 +2484,15 @@ function enterDemoMode() {
     ? currentProfile
     : normalizeProfile({ age: 42, height: 165, weight: null, weightDate: null, sex: "female" });
   renderReport(dm, today, { importedAt: null, sourceLabel: null }, demoProfile);
+  // 架空の点検履歴（2件）。IndexedDBには一切書き込まず、画面表示だけに使う。
+  renderInspectionCard(buildDemoHistory());
   q("import-section").classList.add("hidden-section");
   q("saved-badge").style.display = "none";
   document.body.classList.add("demo-active");
   q("demo-banner").classList.add("visible");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
-function exitDemoMode() {
+async function exitDemoMode() {
   if (!demoMode) return;
   demoMode = false;
   document.body.classList.remove("demo-active");
@@ -2062,6 +2507,11 @@ function exitDemoMode() {
     document.getElementById("report-root").classList.add("hidden-section");
     q("import-section").classList.remove("hidden-section");
     q("saved-badge").style.display = "none";
+  }
+  try {
+    renderInspectionCard(await loadHistory());
+  } catch (e) {
+    renderInspectionCard([]);
   }
 }
 
@@ -2156,6 +2606,7 @@ function wireUi() {
   els.profileSaveNote = q("profile-save-note");
   els.dzTitle = q("dz-title");
   els.overallScore = q("overall-score");
+  els.inspectionRoot = q("inspection-root");
 
   els.profileAge.addEventListener("input", handleProfileInputChange);
   els.profileHeight.addEventListener("input", handleProfileInputChange);
@@ -2201,7 +2652,8 @@ function wireUi() {
     try {
       const report = currentReportData ? { dailyMetrics: currentReportData.dailyMetrics, today: currentReportData.today, importedAt: currentReportData.meta && currentReportData.meta.importedAt, sourceLabel: currentReportData.meta && currentReportData.meta.sourceLabel } : await loadReport();
       if (!report) { setBackupStatus("書き出せるデータがありません。先にzipを取り込んでください。", "err"); return; }
-      const blob = buildBackupBlob(report, currentProfile);
+      const history = await loadHistory(); // デモ表示中でもIndexedDB上の実データのみを書き出す（架空履歴は含めない）
+      const blob = buildBackupBlob(report, currentProfile, history);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const stamp = (report.today || "backup").replace(/-/g, "");
@@ -2225,12 +2677,15 @@ function wireUi() {
       const text = await f.text();
       const parsed = parseBackupJson(text);
       await saveReport(parsed);
+      // バックアップ復元では新規の履歴エントリは追記しない。バックアップに入っていた履歴でそのまま置き換える。
+      await replaceHistory(parsed.history || []);
       if (parsed.profile) {
         currentProfile = parsed.profile;
         await saveProfile(currentProfile);
         populateProfileInputs(currentProfile);
       }
       renderReport(parsed.dailyMetrics, parsed.today, { importedAt: parsed.importedAt, sourceLabel: parsed.sourceLabel }, currentProfile);
+      renderInspectionCard(await loadHistory());
       q("import-section").classList.add("hidden-section");
       q("import-help").open = false;
       setBackupStatus("バックアップから復元しました。", "ok");
@@ -2242,15 +2697,17 @@ function wireUi() {
   });
 
   q("delete-data-btn").addEventListener("click", async () => {
-    if (!window.confirm("保存データを消します。よろしいですか？（バックアップを書き出していない場合は復元できません）")) return;
+    if (!window.confirm("保存データを消します。点検の履歴もすべて消えます。よろしいですか？（バックアップを書き出していない場合は復元できません）")) return;
     try {
       await deleteReport();
+      await deleteHistory();
       currentReportData = null;
       document.getElementById("report-root").classList.add("hidden-section");
       q("saved-badge").style.display = "none";
       q("stale-alert").classList.remove("visible");
       q("import-section").classList.remove("hidden-section");
       q("import-help").open = true; // 初回相当の状態に戻るため手順を展開
+      renderInspectionCard([]);
       setBackupStatus("保存データを消しました。", "ok");
     } catch (e) {
       setBackupStatus(`削除に失敗しました：${e.message}`, "err");
@@ -2263,6 +2720,7 @@ function wireUi() {
       const { charts, recentCutoff } = buildChartPackage(currentReportData.dailyMetrics, currentReportData.today, verdicts);
       renderCharts(charts, recentCutoff);
     }
+    if (lastRenderedHistory) drawHistoryTrendCharts(lastRenderedHistory);
   });
 }
 
@@ -2281,6 +2739,11 @@ async function initApp() {
       renderReport(stored.dailyMetrics, stored.today, { importedAt: stored.importedAt, sourceLabel: stored.sourceLabel }, currentProfile);
       q("import-section").classList.add("hidden-section");
       q("import-help").open = false; // 再訪時は手順を畳んでおく（初回のみ展開）
+      try {
+        renderInspectionCard(await loadHistory());
+      } catch (histErr) {
+        console.warn("点検履歴の読み込みに失敗しました:", histErr);
+      }
     }
   } catch (e) {
     // IndexedDB未対応・初回起動時のエラーは致命的ではない。取り込みUIをそのまま表示する。
