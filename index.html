@@ -102,9 +102,13 @@ details.profile-details[open] { padding-bottom: 20px; }
   font-size: 14px; font-weight: 700; color: var(--text-main);
 }
 .profile-summary::-webkit-details-marker { display: none; }
+.profile-summary .ps-row { display: flex; align-items: center; gap: 8px; }
+.profile-summary .ps-chevron {
+  display: inline-block; flex: none; font-size: 11px; color: var(--accent-text);
+  transition: transform .15s ease;
+}
+details.profile-details[open] .profile-summary .ps-chevron { transform: rotate(90deg); }
 .profile-summary .ps-note { font-size: 12px; font-weight: 400; color: var(--text-sub); }
-.profile-summary::before { content: "▸"; float: right; color: var(--accent-text); }
-details.profile-details[open] .profile-summary::before { content: "▾"; }
 .profile-body { margin-top: 14px; }
 
 /* --- 書き出し手順（番号付き） --- */
@@ -173,7 +177,13 @@ body.demo-active { padding-top: 44px; }
 .dropzone .dz-title { font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
 .dropzone input[type="file"] { display: none; }
 .import-help { margin-top: 12px; font-size: 12.5px; color: var(--text-sub); }
-.import-help summary { cursor: pointer; color: var(--accent-text); font-weight: 600; }
+.import-help summary { cursor: pointer; color: var(--accent-text); font-weight: 600; list-style: none; }
+.import-help summary::-webkit-details-marker { display: none; }
+.import-help summary::before {
+  content: "▸"; display: inline-block; margin-right: 6px; font-size: 11px;
+  transition: transform .15s ease;
+}
+.import-help[open] summary::before { transform: rotate(90deg); }
 .import-help div { margin-top: 8px; line-height: 1.75; }
 
 .progress-wrap { display: none; align-items: center; gap: 10px; margin-top: 14px; }
@@ -228,7 +238,13 @@ body.demo-active { padding-top: 44px; }
 }
 
 .score-details { margin-top: 16px; font-size: 12.5px; color: var(--text-sub); }
-.score-details summary { cursor: pointer; color: var(--accent-text); font-weight: 600; }
+.score-details summary { cursor: pointer; color: var(--accent-text); font-weight: 600; list-style: none; }
+.score-details summary::-webkit-details-marker { display: none; }
+.score-details summary::before {
+  content: "▸"; display: inline-block; margin-right: 6px; font-size: 11px;
+  transition: transform .15s ease;
+}
+.score-details[open] summary::before { transform: rotate(90deg); }
 .score-details .breakdown { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .score-details .breakdown h4 { font-size: 12.5px; margin: 10px 0 4px; color: var(--text-main); }
 .score-details .breakdown h4:first-child { margin-top: 0; }
@@ -358,8 +374,7 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
       </ol>
       <div class="help-note">
         PCで見ている場合は、iPhoneからAirDrop等でzipファイルをPCに送ってから選択してください。<br>
-        巨大なファイル（数百MB）でも、この画面の中だけで少しずつ処理します。処理中は画面を閉じないでください。<br>
-        zipの解凍・集計・グラフ描画はすべてこのページのJavaScriptがブラウザ内で行い、サーバーへの送信は一切ありません（外部通信ゼロ）。
+        巨大なファイル（数百MB）でも、この画面の中だけで少しずつ処理します。処理中は画面を閉じないでください。
       </div>
     </details>
 
@@ -371,7 +386,10 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
   </section>
 
   <details class="panel profile-details" id="profile-input-section">
-    <summary class="profile-summary">わたしの情報<span class="ps-note">任意：年齢・身長を入れると採点の精度が上がります</span></summary>
+    <summary class="profile-summary">
+      <span class="ps-row"><span class="ps-chevron">▸</span><span class="ps-title">わたしの情報</span></span>
+      <span class="ps-note">任意：年齢・身長を入れると採点の精度が上がります</span>
+    </summary>
     <div class="profile-body">
       <div class="profile-form">
         <div class="profile-field">
