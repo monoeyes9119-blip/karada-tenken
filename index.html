@@ -341,10 +341,20 @@ input[type="file"].hidden-file { display: none; }
 .inspect-answercheck .aw-result strong { color: var(--accent-text); }
 .inspect-note { font-size: 11.5px; color: var(--text-faint); margin-top: 8px; }
 .inspect-homework { background: var(--accent-soft); border-radius: 16px; padding: 16px 18px; }
-.inspect-homework .hw-heading { font-size: 11.5px; font-weight: 700; color: var(--accent-text); letter-spacing: .04em; margin-bottom: 6px; }
+.inspect-homework .hw-heading { font-size: 11.5px; font-weight: 700; color: var(--accent-text); letter-spacing: .04em; margin-bottom: 8px; }
+.inspect-homework .hw-state { font-size: 13px; color: var(--text-sub); line-height: 1.7; margin-bottom: 10px; }
 .inspect-homework .hw-label { font-size: 17px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
 .inspect-homework .hw-target { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.inspect-homework .hw-action { font-size: 14px; color: var(--text-main); line-height: 1.7; margin-bottom: 8px; }
+.inspect-homework .hw-consult-block { margin-bottom: 8px; }
+.inspect-homework .hw-consult-line { font-size: 14px; color: var(--text-main); line-height: 1.7; margin-bottom: 6px; }
+.inspect-homework .hw-consult-line strong { color: var(--warn); }
 .inspect-homework .hw-cue { font-size: 12.5px; color: var(--text-main); line-height: 1.7; }
+.inspect-homework .hw-caution { font-size: 11px; color: var(--text-faint); line-height: 1.6; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--warn-border); }
+.inspect-homework .hw-disclaimer { font-size: 10.5px; color: var(--text-faint); line-height: 1.6; margin-top: 8px; }
+.inspect-homework.hw-consult { background: var(--warn-bg); border: 1px solid var(--warn-border); }
+.inspect-homework.hw-consult .hw-heading { color: var(--warn); }
+.inspect-homework.hw-consult .hw-label { color: var(--warn); }
 .inspect-next-date { font-size: 11.5px; color: var(--text-faint); margin-top: 14px; text-align: right; }
 .inspect-first-msg { font-size: 14px; font-weight: 600; color: var(--text-main); background: var(--bg); border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; line-height: 1.7; }
 
@@ -1509,13 +1519,94 @@ function pickWeakestGaitItem(itemScores) {
 const HOMEWORK_UNIT = {
   steps30dMedian: "歩", stepLengthCm: "cm", speed90dMedian: "m/s",
   asym90dMedian: "%", doubleSupport90dMedian: "%", bmi: "", recoveryDays: "日",
+  overallScore: "点",
 };
 const HOMEWORK_DECIMALS = {
   steps30dMedian: 0, stepLengthCm: 0, speed90dMedian: 2,
   asym90dMedian: 2, doubleSupport90dMedian: 1, bmi: 1, recoveryDays: 0,
+  overallScore: 0,
 };
+
+/* --- PT監修の処方カード本文 --------------------------------------------
+   宿題のkey（bmiのみ direction も併用）から文言を引く辞書。
+   文言そのものはPTレビュー済みの確定文なので、ここでは改変せず差し替えのみ想定する。
+   D（asym90dMedian）だけ「運動の処方」ではなく「相談の案内」なので専用フィールド構成。
+   H（maintain）は宿題キー未生成のケース（全項目75点以上）に generateHomework が
+   合成する仮想キー "overallScore" に対応する。
+--------------------------------------------------------------------------- */
+const PRESCRIPTIONS = {
+  steps30dMedian: {
+    state: "歩く機会が少ない日は、脚の筋肉や心肺に刺激が入りにくく、体力を保つための活動量が足りていない可能性があります。仕事や移動の少なさも影響します。",
+    action: "楽に会話できる速さで10分間歩く×1回／日。",
+    cue: "昼食を食べ終えたら、10分間歩く。",
+    caution: "胸の痛み、強い息切れ、めまいが出たら中止し、症状が続く場合は医療機関に相談してください。",
+  },
+  stepLengthCm: {
+    state: "歩幅が短いときは、股関節や足首の動きが小さくなっているほか、筋力の低下や、転ばないよう慎重に歩く意識が影響している可能性があります。",
+    action: "普段より足半分だけ歩幅を広げて20歩×2セット／日。<strong>前に足を振り出して伸ばすのではなく、後ろの脚を長く残す意識で行ってください。</strong>",
+    cue: "玄関を出たら、最初の20歩だけ少し歩幅を広げる。",
+    caution: "脚や腰に痛みが出る、バランスが崩れる場合は、歩幅を広げず中止してください。",
+  },
+  speed90dMedian: {
+    state: "歩く速さが年代の目安より遅いときは、脚の力や持久力の低下、痛みへの用心、歩く機会の少なさなどが重なっている可能性があります。",
+    action: "普段より少し速い歩行を3分間×1回／日、週5日。",
+    cue: "通勤や買い物で歩き始めたら、最初の3分だけ少し速く歩く。",
+    caution: "胸の痛み、強い息切れ、めまい、脚の痛みが出たら中止してください。",
+  },
+  asym90dMedian: {
+    state: "歩くときの左右差には、痛みをかばう動きや脚の動かしにくさが隠れている可能性があります。一方で、スマートフォンの持ち方や測定条件によるばらつきでも数値は変わります。",
+    consultYes: "<strong>いま脚や腰に痛み・しびれがある場合</strong>は、早めに整形外科や理学療法士に歩き方を確認してもらってください。",
+    consultNo: "<strong>痛みがない場合</strong>は、まず次回の点検まで様子をみてください。次回も左右差が続くようなら、一度専門家に相談することをおすすめします。",
+    cue: "（痛みがある場合のみ）気づいた日のうちに、相談先を調べて予約する。",
+    caution: "急に左右差が大きくなった、強い痛みやしびれがある場合は、早めに医療機関へ相談してください。",
+  },
+  doubleSupport90dMedian: {
+    state: "両足が地面についている時間が長いときは、片脚で体を支える場面に不安があり、安定を保つため慎重に足を運んでいる可能性があります。",
+    action: "安定した台に指先を添え、片脚立ち10秒×左右3回／日。",
+    cue: "歯を磨き終えたら、台に手を添えて片脚立ちをする。",
+    caution: "必ず支えの近くで行い、ふらつきや痛み、めまいが出たら中止してください。",
+  },
+  recoveryDays: {
+    state: "計測日が少ないため、安静時心拍や心拍のゆらぎが普段の状態を十分に表していない可能性があります。装着時間やフィット感も記録量に影響します。",
+    action: "Apple Watchをきつすぎない状態で、起床から就寝まで7日間続けて装着する。",
+    cue: "朝の洗顔が終わったら、Apple Watchを装着する。",
+    caution: "手首にかゆみや赤み、痛みが出たら外し、皮膚を休ませてください。",
+  },
+  bmi_down: {
+    state: "BMIが標準域より高い場合、体格や筋肉量の影響に加え、摂取量が活動量を上回る状態が続いている可能性があります。BMIだけでは体の状態を断定できません。",
+    action: "夕食後に楽に会話できる速さで10分間歩く×1回／日、週5日。",
+    cue: "夕食の食器を片づけたら、10分間歩く。",
+    caution: "持病や運動制限がある人は主治医に相談し、胸の痛みやめまいが出たら中止してください。",
+  },
+  bmi_up: {
+    state: "BMIが標準域より低い場合、もともとの体格に加え、食事量の不足や体調の変化で体重が減っている可能性があります。BMIだけでは栄養状態を断定できません。",
+    action: "午後の間食を1つ増やしてみる（例：バナナ1本、おにぎり1個）×1回／日、週5日。",
+    cue: "午後の休憩に入ったら、間食を1つとる。",
+    caution: "<strong>意図しない体重減少や食欲不振が続く場合は、運動や食事を増やす前に、まず医療機関に相談してください。</strong>食事制限や持病がある場合も医師に相談してください。",
+  },
+  overallScore: {
+    state: "今回の項目はすべて良好で、日々の歩行や休養など、今の生活習慣が体の動きと回復を支えている可能性があります。無理に負荷を増やす必要はありません。",
+    action: "今続けている10分以上の歩行を1日1回、週5日続ける。",
+    cue: "いつもの歩く時間になったら、これまでどおり歩き始める。",
+    caution: "体調不良や痛みがある日は無理をせず休み、症状が続く場合は医療機関に相談してください。",
+  },
+};
+const HOMEWORK_DISCLAIMER = "この内容は一般的な目安に基づく提案で、診断や治療ではありません。気になる症状があるときは医療機関にご相談ください。";
+
+// 全項目（活動量・歩きの質・体組成・回復系）が75点以上＝良好のとき、宿題の対象が無い。
+// この判定は「既存の宿題選定（最低スコアの項目を選ぶ）」より手前に置く新規の分岐であり、
+// 既存の pickHomeworkCategory 以下の選定ロジック自体には一切手を加えていない。
+function allCategoriesGood(scores) {
+  return ["activity", "gait", "bodyComp", "recovery"].every((k) => scores[k] != null && scores[k] >= 75);
+}
 // 宿題は必ず1つだけ。心理学者脳§2：If-Thenプラン（いつ・どこで・何を）＋「〜してみませんか」の非強制トーン。
 function generateHomework(scores, metrics, verdicts) {
+  if (allCategoriesGood(scores)) {
+    // H：全項目良好。答え合わせ用に仮想キー "overallScore" を使い、次回は総合点の維持を判定する。
+    const baseline = scores.overall;
+    return { key: "overallScore", label: "現状維持", baseline, target: baseline, unit: HOMEWORK_UNIT.overallScore, direction: "maintain",
+      cue: "いつもの歩く時間になったら、これまでどおり歩き始める。" };
+  }
   const category = pickHomeworkCategory(scores);
   if (!category) return null;
 
@@ -1580,6 +1671,13 @@ function evaluateHomework(homework, metrics) {
   if (current == null || typeof current !== "number" || Number.isNaN(current)) {
     return { status: "unknown", rate: null, current: null, delta: null };
   }
+  // H（overallScore＝現状維持）専用の判定：総合点が前回±3以内なら「維持」。
+  // 既存7項目（steps30dMedian等）のrate計算式には一切触れない、独立した早期returnとして追加。
+  if (homework.key === "overallScore") {
+    const delta = current - homework.baseline;
+    const status = Math.abs(delta) <= 3 ? "maintained" : (delta > 0 ? "improved" : "regress");
+    return { status, rate: null, current, delta };
+  }
   const { baseline, target, direction } = homework;
   let rate;
   if (target === baseline) {
@@ -1599,6 +1697,9 @@ async function recordHistoryEntry(dailyMetrics, today, profile, importedAtIso) {
   const verdicts = buildVerdicts(dailyMetrics, today, profile);
   const scores = buildScoresSnapshot(verdicts);
   const metrics = buildMetricsSnapshot(verdicts);
+  // H（overallScore＝現状維持）の答え合わせでは総合点を参照する。metrics系の既存フィールドは
+  // 一切変更せず、新しいフィールドを1つ足すだけ（buildMetricsSnapshot自体は変更しない）。
+  metrics.overallScore = scores.overall;
   const homework = generateHomework(scores, metrics, verdicts);
   const entry = { date: today, importedAt: importedAtIso, scores, metrics, homework };
   await saveHistoryEntry(entry);
@@ -2034,7 +2135,7 @@ function drawHistoryTrendCharts(history) {
    PART C.5: 点検結果カードのHTML組み立て（答え合わせの文言・前回比・宿題の表示）
    ========================================================================= */
 const ITEM_LABELS = { activity: "活動量", gait: "歩きの質", bodyComp: "体組成", recovery: "回復系" };
-const HOMEWORK_STATUS_LABEL = { achieved: "達成", progress: "前進", slight: "わずかに前進", regress: "後退" };
+const HOMEWORK_STATUS_LABEL = { achieved: "達成", progress: "前進", slight: "わずかに前進", regress: "後退", maintained: "維持", improved: "さらに向上" };
 function fmtHomeworkValue(key, v) {
   if (v == null) return "-";
   const d = HOMEWORK_DECIMALS[key] != null ? HOMEWORK_DECIMALS[key] : 1;
@@ -2067,36 +2168,86 @@ function buildInspectItemsRowHtml(prevScores, curScores) {
 function buildAnswerCheckHtml(prevHomework, currentMetrics, daysSinceImport) {
   if (!prevHomework) return "";
   const evalResult = evaluateHomework(prevHomework, currentMetrics);
-  const unit = prevHomework.unit || "";
-  const baselineText = fmtHomeworkValue(prevHomework.key, prevHomework.baseline) + unit;
-  const targetText = fmtHomeworkValue(prevHomework.key, prevHomework.target) + unit;
-  let resultLine;
-  if (!evalResult || evalResult.status === "unknown") {
-    resultLine = `結果：今回のデータでは判定できませんでした`;
+  let prevLine, resultLine;
+  // H（overallScore＝現状維持）専用の文言分岐。既存7項目の下のelse節は無改変。
+  if (prevHomework.key === "overallScore") {
+    prevLine = `先月の宿題：${prevHomework.label}（総合${fmtHomeworkValue("overallScore", prevHomework.baseline)}点を維持）`;
+    if (!evalResult || evalResult.status === "unknown") {
+      resultLine = `結果：今回のデータでは判定できませんでした`;
+    } else {
+      const deltaSign = evalResult.delta >= 0 ? "+" : "-";
+      const deltaText = deltaSign + fmtHomeworkValue("overallScore", Math.abs(evalResult.delta)) + "点";
+      const statusLabel = HOMEWORK_STATUS_LABEL[evalResult.status];
+      resultLine = `結果：総合${fmtHomeworkValue("overallScore", evalResult.current)}点（${deltaText}）→ <strong>${statusLabel}</strong>`;
+    }
   } else {
-    const curText = fmtHomeworkValue(prevHomework.key, evalResult.current) + unit;
-    const deltaSign = evalResult.delta >= 0 ? "+" : "-";
-    const deltaText = deltaSign + fmtHomeworkValue(prevHomework.key, Math.abs(evalResult.delta)) + unit;
-    const ratePct = Math.round(evalResult.rate * 100);
-    const statusLabel = HOMEWORK_STATUS_LABEL[evalResult.status];
-    resultLine = `結果：${curText}（${deltaText}・達成率${ratePct}%）→ <strong>${statusLabel}</strong>`;
+    const unit = prevHomework.unit || "";
+    const baselineText = fmtHomeworkValue(prevHomework.key, prevHomework.baseline) + unit;
+    const targetText = fmtHomeworkValue(prevHomework.key, prevHomework.target) + unit;
+    prevLine = `先月の宿題：${prevHomework.label}（${baselineText} → ${targetText}）`;
+    if (!evalResult || evalResult.status === "unknown") {
+      resultLine = `結果：今回のデータでは判定できませんでした`;
+    } else {
+      const curText = fmtHomeworkValue(prevHomework.key, evalResult.current) + unit;
+      const deltaSign = evalResult.delta >= 0 ? "+" : "-";
+      const deltaText = deltaSign + fmtHomeworkValue(prevHomework.key, Math.abs(evalResult.delta)) + unit;
+      const ratePct = Math.round(evalResult.rate * 100);
+      const statusLabel = HOMEWORK_STATUS_LABEL[evalResult.status];
+      resultLine = `結果：${curText}（${deltaText}・達成率${ratePct}%）→ <strong>${statusLabel}</strong>`;
+    }
   }
   const noteHtml = daysSinceImport != null && daysSinceImport < 7
     ? `<div class="inspect-note">前回から${daysSinceImport}日しか経っていないため、変化は測定のばらつきの範囲かもしれません。</div>` : "";
   return `<div class="inspect-answercheck">
-    <div class="aw-prev">先月の宿題：${prevHomework.label}（${baselineText} → ${targetText}）</div>
+    <div class="aw-prev">${prevLine}</div>
     <div class="aw-result">${resultLine}</div>
     ${noteHtml}
   </div>`;
 }
+// PT監修の処方カード本文を4段（状態／今回の宿題＝処方／きっかけ／注意）で組み立てる。
+// PRESCRIPTIONSからkey（bmiのみdirectionも）で文言を引くだけで、宿題そのものの選定・
+// target計算（homework.key/baseline/target/direction）には一切触れない。
+function prescriptionFor(homework) {
+  if (!homework) return null;
+  if (homework.key === "bmi") return PRESCRIPTIONS[homework.direction === "down" ? "bmi_down" : "bmi_up"];
+  return PRESCRIPTIONS[homework.key] || null;
+}
 function buildHomeworkBoxHtml(homework, heading) {
   if (!homework) return "";
-  const unit = homework.unit || "";
-  return `<div class="inspect-homework">
-    <div class="hw-heading">${heading}</div>
+  const rx = prescriptionFor(homework);
+  if (!rx) return "";
+  const isConsult = homework.key === "asym90dMedian";
+  const isMaintain = homework.key === "overallScore";
+  const cardClass = isConsult ? "inspect-homework hw-consult" : "inspect-homework";
+  const headingText = isConsult ? `⚠ ${heading}（相談の目安）` : heading;
+
+  let rxBodyHtml;
+  if (isConsult) {
+    rxBodyHtml = `
     <div class="hw-label">${homework.label}</div>
-    <div class="hw-target">目標：${fmtHomeworkValue(homework.key, homework.baseline)}${unit} → ${fmtHomeworkValue(homework.key, homework.target)}${unit}</div>
-    <div class="hw-cue">${homework.cue}</div>
+    <div class="hw-consult-block">
+      <div class="hw-consult-line">${rx.consultYes}</div>
+      <div class="hw-consult-line">${rx.consultNo}</div>
+    </div>`;
+  } else if (isMaintain) {
+    rxBodyHtml = `
+    <div class="hw-label">${homework.label}</div>
+    <div class="hw-action">${rx.action}</div>`;
+  } else {
+    const unit = homework.unit || "";
+    rxBodyHtml = `
+    <div class="hw-label">${homework.label}</div>
+    <div class="hw-action">${rx.action}</div>
+    <div class="hw-target">目標：${fmtHomeworkValue(homework.key, homework.baseline)}${unit} → ${fmtHomeworkValue(homework.key, homework.target)}${unit}</div>`;
+  }
+
+  return `<div class="${cardClass}">
+    <div class="hw-heading">${headingText}</div>
+    <div class="hw-state">${rx.state}</div>
+    ${rxBodyHtml}
+    <div class="hw-cue">きっかけ：${rx.cue}</div>
+    <div class="hw-caution">注意：${rx.caution}</div>
+    <div class="hw-disclaimer">${HOMEWORK_DISCLAIMER}</div>
   </div>`;
 }
 let lastRenderedHistory = null;
