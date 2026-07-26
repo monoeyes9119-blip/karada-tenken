@@ -18,8 +18,10 @@
   --accent: #e07a58;
   --accent-text: #ad4325;
   --accent-soft: #f3d9c8;
+  --excellent: #35502b;
   --good: #4f6b46;
   --watch: #a9762c;
+  --caution: #c1652c;
   --warn: #ad4325;
   --warn-bg: #fbe9e0;
   --warn-border: #f0c9b6;
@@ -213,6 +215,11 @@ body.demo-active { padding-top: 44px; }
 }
 .profile-field input[type="number"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 .profile-field input.invalid { border-color: var(--warn); }
+.profile-field select {
+  flex: 1 1 auto; min-height: 44px; font-size: 16px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text-main);
+}
+.profile-field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 .profile-field .unit-suffix { font-size: 13px; color: var(--text-sub); flex: none; }
 .field-error { font-size: 11.5px; color: var(--warn); margin-top: 4px; min-height: 14px; }
 .profile-hint { font-size: 12px; color: var(--text-faint); margin-top: 14px; }
@@ -227,10 +234,17 @@ body.demo-active { padding-top: 44px; }
 .v-row .v-score .v-score-unit { font-size: 11px; font-weight: 400; color: var(--text-sub); margin-left: 1px; }
 .v-row .v-status { display: flex; align-items: center; gap: 6px; flex: none; font-size: 12.5px; font-weight: 700; min-width: 82px; justify-content: flex-end; }
 .v-row .v-symbol { font-size: 14px; }
+.v-row.excellent .v-score, .v-row.excellent .v-status { color: var(--excellent); }
 .v-row.good .v-score, .v-row.good .v-status { color: var(--good); }
 .v-row.watch .v-score, .v-row.watch .v-status { color: var(--watch); }
+.v-row.caution .v-score, .v-row.caution .v-status { color: var(--caution); }
 .v-row.warn .v-score, .v-row.warn .v-status { color: var(--warn); }
 .v-row.gray .v-score, .v-row.gray .v-status { color: var(--text-faint); }
+
+.overall-score { font-size: 13.5px; font-weight: 700; color: var(--text-sub); margin: 2px 0 10px; }
+.overall-score:empty { display: none; }
+.overall-score .overall-score-num { font-size: 26px; color: var(--accent-text); font-variant-numeric: tabular-nums; margin: 0 2px; }
+.overall-score .overall-score-unit { font-size: 12px; font-weight: 400; color: var(--text-sub); }
 
 .headline {
   font-size: 14px; font-weight: 600; color: var(--text-main); background: var(--accent-soft);
@@ -416,6 +430,17 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
           </div>
           <div class="field-error" id="profile-weight-error"></div>
         </div>
+        <div class="profile-field">
+          <label for="profile-sex">性別（任意：体脂肪率の採点に使います）</label>
+          <div class="input-row">
+            <select id="profile-sex">
+              <option value="">未選択</option>
+              <option value="male">男性</option>
+              <option value="female">女性</option>
+              <option value="unspecified">回答しない</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div class="profile-hint" id="profile-hint"></div>
       <div class="profile-save-note" id="profile-save-note"></div>
@@ -425,7 +450,8 @@ footer { text-align: center; color: var(--text-faint); font-size: 11.5px; margin
   <div id="report-root" class="hidden-section">
     <section class="panel">
       <h2><span class="num">01</span>総合判定</h2>
-      <div class="panel-sub">開いた瞬間にわかる、今の体の状態（100点に近いほど良好です）</div>
+      <div class="panel-sub">開いた瞬間にわかる、今の体の状態。満点は「明確に良い水準」に届いたときだけ出ます。健康な人でも70〜85点になるのが普通です。</div>
+      <div class="overall-score" id="overall-score"></div>
       <div class="headline" id="verdict-headline"></div>
       <div class="verdict-list" id="verdict-list"></div>
       <details class="score-details">
@@ -835,43 +861,112 @@ const JUDGMENT_THRESHOLDS = {
 const CHART_BANDS = { asym_ok_max: 3.0, steps_target: 7000, speed_standard_min: 1.2, speed_standard_max: 1.4, dsupport_axis_min: 20.0 };
 
 /* =========================================================================
-   点数化ルール（v1）。すべて定数にまとめてあり、あとから調整可能。
-   状態語マッピング（全指標共通）：80点以上=良好◎／60〜79=まずまず△／
-   59以下=要注意⚠️／点数なし=材料不足－
+   点数化ルール（v2：連続採点）。すべて定数にまとめてあり、あとから調整可能。
+   採点は区分線形補間（scoreFromAnchors）で行う。アンカーは各項目のコメントに根拠を1行添える。
+   状態語マッピング（全指標共通）：
+   90以上=優秀◎／75〜89=良好○／60〜74=まずまず△／45〜59=要観察▲／44以下=要注意⚠️／点数なし=材料不足－
    ========================================================================= */
-const SCORE_RULES = {
-  activity: { target_steps: 7500, yoy_drop_threshold_pct: -15, yoy_penalty: 10 },
-  gait: {
-    asym_mild_threshold: 3, asym_mild_penalty: 20,
-    asym_severe_threshold: 5, asym_severe_penalty: 40,
-    dsupport_threshold: 32, dsupport_penalty: 15,
-    speed_mild_diff: 0.1, speed_mild_penalty: 10,
-    speed_severe_diff: 0.2, speed_severe_penalty: 25,
-    baseline_speed_default: 1.2,
-    baseline_speed_by_age: [
-      { max_age: 39, speed: 1.30 }, { max_age: 59, speed: 1.25 },
-      { max_age: 74, speed: 1.15 }, { max_age: Infinity, speed: 1.00 },
-    ],
-  },
-  body_comp: { bmi_min: 18.5, bmi_max: 25.0, bmi_penalty_per_unit: 10, bmi_score_floor: 40, fat_min: 10, fat_max: 25, fat_penalty: 10 },
-  recovery: { rhr_good_max: 60, rhr_good_score: 90, rhr_watch_max: 70, rhr_watch_score: 75, rhr_warn_score: 60, hrv_healthy_min: 40, hrv_bonus: 5, hrv_penalty: 5 },
-  level_bands: { good_min: 80, watch_min: 60 },
-};
-function baselineSpeedForAge(age) {
-  if (age == null) return SCORE_RULES.gait.baseline_speed_default;
-  for (const band of SCORE_RULES.gait.baseline_speed_by_age) {
-    if (age <= band.max_age) return band.speed;
-  }
-  return SCORE_RULES.gait.baseline_speed_default;
-}
 function clampScore(v) { return Math.max(0, Math.min(100, v)); }
-function scoreToStatus(score) {
-  const bands = SCORE_RULES.level_bands;
-  if (score == null) return { symbol: "－", level: "gray", label: "材料不足" };
-  if (score >= bands.good_min) return { symbol: "◎", level: "good", label: "良好" };
-  if (score >= bands.watch_min) return { symbol: "△", level: "watch", label: "まずまず" };
-  return { symbol: "⚠️", level: "warn", label: "要注意" };
+// 区分線形補間の汎用ヘルパー。anchorsは[[x1,y1],[x2,y2],...]の昇順配列。範囲外は端の値でクランプする。
+// value がnull/undefined/NaN、またはanchorsが空のときはnullを返す（=採点不能。呼び出し側で「材料不足」に落とす）。
+function scoreFromAnchors(value, anchors) {
+  if (value == null || typeof value !== "number" || Number.isNaN(value)) return null;
+  if (!Array.isArray(anchors) || anchors.length === 0) return null;
+  if (anchors.length === 1) return clampScore(anchors[0][1]);
+  const first = anchors[0], last = anchors[anchors.length - 1];
+  if (value <= first[0]) return clampScore(first[1]);
+  if (value >= last[0]) return clampScore(last[1]);
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const [x1, y1] = anchors[i];
+    const [x2, y2] = anchors[i + 1];
+    if (value >= x1 && value <= x2) {
+      if (x2 === x1) return clampScore(y1);
+      const t = (value - x1) / (x2 - x1);
+      return clampScore(y1 + t * (y2 - y1));
+    }
+  }
+  return clampScore(last[1]);
 }
+const SCORE_RULES = {
+  gait: {
+    // 身長ありのとき／なしのときで重みが変わる（歩幅比は身長が無いと算出不能なため）。合計は必ず1.0。
+    weights_with_height: { asym: 0.30, speed: 0.35, dsupport: 0.20, steplen: 0.15 },
+    weights_without_height: { asym: 0.35, speed: 0.40, dsupport: 0.25 },
+    // 左右非対称性(%)：直近90日中央値。1%未満はほぼ健常域、3%を超えたあたりから明確な逸脱、5%超で強い逸脱とみなす目安。
+    asym_anchors: [[0, 100], [1, 92], [2, 78], [3, 60], [4, 40], [5, 20], [7, 0]],
+    // 両脚支持時間(%)：直近90日中央値。24%前後が成人の標準的な値、加齢・不安定性で延長し35%超は明確な逸脱域。
+    dsupport_anchors: [[24, 100], [26, 92], [28, 80], [30, 62], [32, 42], [35, 15], [38, 0]],
+    // 歩幅比＝歩幅(cm)÷身長(cm)。身長データがあるときだけ採点する。0.45以上は十分な歩幅、0.32未満は明確に小さい目安。
+    steplen_ratio_anchors: [[0.32, 0], [0.35, 28], [0.37, 45], [0.39, 62], [0.41, 78], [0.43, 90], [0.45, 100]],
+    // 歩行速度は実測値そのものでなく「年代別基準速度に対する比」で採点する（高齢ほど基準が下がるため）。
+    speed_ratio_anchors: [[0.70, 0], [0.80, 30], [0.85, 45], [0.90, 58], [0.95, 70], [1.00, 82], [1.05, 92], [1.10, 100]],
+    // 年代別基準速度(m/s)。年齢未入力時は40〜59歳相当の基準を仮に使う。
+    speed_ref_by_age: [{ max_age: 39, ref: 1.30 }, { max_age: 59, ref: 1.25 }, { max_age: 74, ref: 1.15 }, { max_age: Infinity, ref: 1.00 }],
+    speed_ref_default: 1.25,
+  },
+  activity: {
+    steps_target: 8000, // 8,000歩で満点（歩数と生活習慣病リスクの目安として広く使われる水準）
+    yoy_drop_severe_pct: -30, yoy_penalty_severe: 15, // 前年同期比-30%以下＝大幅な活動量低下
+    yoy_drop_mild_pct: -15, yoy_penalty_mild: 8,       // 前年同期比-15%以下＝軽度の低下。重複適用せず大きい方のみ
+  },
+  body_comp: {
+    fat_weight: 0.6, bmi_weight: 0.4, // 体脂肪率とBMIが両方使えるときの加重平均比率
+    bmi_only_cap: 90, // BMIだけでは筋肉量と脂肪量を区別できないため、BMI単独採点時は上限90点でクランプする
+    // BMI：18.5〜25の適正帯付近が高得点、極端な低体重・肥満に向けて減点する山型アンカー。
+    bmi_anchors: [[15, 10], [16.5, 30], [17.5, 48], [18.5, 65], [19, 78], [20, 90], [21, 100], [23, 100], [24, 90], [25, 78], [26.5, 65], [28, 48], [30, 30], [33, 10]],
+    // 体脂肪率（男性）：一般的な健康目安10〜20%付近を満点帯とする山型アンカー。
+    fat_anchors_male: [[6, 10], [8, 65], [10, 100], [18, 100], [20, 85], [23, 65], [25, 50], [28, 30], [30, 10]],
+    // 体脂肪率（女性）：一般的な健康目安18〜26%付近を満点帯とする山型アンカー。
+    fat_anchors_female: [[14, 10], [16, 65], [18, 100], [26, 100], [28, 85], [31, 65], [33, 50], [36, 30], [38, 10]],
+  },
+  recovery: {
+    rhr_weight: 0.55, hrv_weight: 0.45,
+    // 安静時心拍(bpm)：48〜55bpm付近を満点帯とする山型アンカー。40bpm未満も減点対象（極端な徐脈は要確認のため）。
+    rhr_anchors: [[38, 10], [40, 68], [42, 80], [45, 92], [48, 100], [55, 100], [58, 92], [62, 80], [66, 68], [70, 55], [75, 40], [80, 25], [85, 10]],
+    // HRV(SDNN)は実測msでなく「年代別基準に対する比」で採点する。
+    hrv_ratio_anchors: [[0.25, 10], [0.40, 28], [0.60, 48], [0.80, 65], [1.00, 80], [1.30, 100]],
+    hrv_ref_by_age: [{ max_age: 39, ref: 50 }, { max_age: 59, ref: 40 }, { max_age: Infinity, ref: 30 }],
+    hrv_ref_default: 45, // 年齢未入力時は40〜59歳相当の基準を仮に使う
+  },
+  // 状態ラベルの5段階。scoreToStatusはこの配列を上から順に見て最初に一致した帯を採用する（降順に並べること）。
+  level_bands: [
+    { min: 90, symbol: "◎", level: "excellent", label: "優秀" },
+    { min: 75, symbol: "○", level: "good", label: "良好" },
+    { min: 60, symbol: "△", level: "watch", label: "まずまず" },
+    { min: 45, symbol: "▲", level: "caution", label: "要観察" },
+    { min: -Infinity, symbol: "⚠️", level: "warn", label: "要注意" },
+  ],
+};
+function speedRefForAge(age) {
+  const g = SCORE_RULES.gait;
+  if (age == null) return g.speed_ref_default;
+  for (const band of g.speed_ref_by_age) if (age <= band.max_age) return band.ref;
+  return g.speed_ref_default;
+}
+function hrvRefForAge(age) {
+  const r = SCORE_RULES.recovery;
+  if (age == null) return r.hrv_ref_default;
+  for (const band of r.hrv_ref_by_age) if (age <= band.max_age) return band.ref;
+  return r.hrv_ref_default;
+}
+// 材料が揃っている項目だけで加重平均する（欠けている指標は除外して重みを再正規化）。
+// items: [{score, weight}, ...]。scoreがnullの項目は除外。全滅ならnullを返す（=材料不足）。
+function weightedAverageScore(items) {
+  const avail = items.filter((it) => it.score != null);
+  if (!avail.length) return null;
+  const totalWeight = avail.reduce((s, it) => s + it.weight, 0);
+  if (totalWeight <= 0) return null;
+  return avail.reduce((s, it) => s + it.score * (it.weight / totalWeight), 0);
+}
+function scoreToStatus(score) {
+  if (score == null) return { symbol: "－", level: "gray", label: "材料不足" };
+  for (const band of SCORE_RULES.level_bands) {
+    if (score >= band.min) return { symbol: band.symbol, level: band.level, label: band.label };
+  }
+  const fallback = SCORE_RULES.level_bands[SCORE_RULES.level_bands.length - 1];
+  return { symbol: fallback.symbol, level: fallback.level, label: fallback.label };
+}
+function isPositiveLevel(level) { return level === "excellent" || level === "good"; }
 function latestHealthWeight(dm) {
   const series = fetchSeries(dm, "body_mass_kg").filter(([, v]) => v != null);
   return series.length ? { date: series[series.length - 1][0], value: series[series.length - 1][1] } : null;
@@ -888,45 +983,64 @@ function effectiveWeight(dm, profile) {
 
 function classifyGaitQuality(dm, today, profile) {
   const th = JUDGMENT_THRESHOLDS.gait;
-  const sr = SCORE_RULES.gait;
+  const gr = SCORE_RULES.gait;
   const start = addDaysIso(today, -th.window_days);
   const asymVals = valuesInWindow(dm, "walking_asymmetry_pct", start, today);
   const speedVals = valuesInWindow(dm, "walking_speed_m_s", start, today);
-  if (!asymVals.length || !speedVals.length) {
-    return { ...scoreToStatus(null), reason: `直近${th.window_days}日の左右非対称性・歩行速度データが不足しています。`,
-      score: null, breakdown: [`直近${th.window_days}日の左右非対称性・歩行速度データが不足しているため採点できません。`] };
-  }
-  const asymMed = median(asymVals), speedMed = median(speedVals);
   const dsupportVals = valuesInWindow(dm, "walking_double_support_pct", start, today);
+  const steplenVals = valuesInWindow(dm, "walking_step_length_cm", start, today);
+
+  const asymMed = asymVals.length ? median(asymVals) : null;
+  const speedMed = speedVals.length ? median(speedVals) : null;
   const dsupportMed = dsupportVals.length ? median(dsupportVals) : null;
-  const baseline = baselineSpeedForAge(profile && profile.age);
+  const steplenMed = steplenVals.length ? median(steplenVals) : null;
 
-  let asymPenalty = 0;
-  if (asymMed > sr.asym_severe_threshold) asymPenalty = sr.asym_severe_penalty;
-  else if (asymMed > sr.asym_mild_threshold) asymPenalty = sr.asym_mild_penalty;
+  const age = profile && profile.age != null ? profile.age : null;
+  const height = profile && profile.height != null ? profile.height : null;
+  const speedRef = speedRefForAge(age);
+  const speedRatio = speedMed != null ? speedMed / speedRef : null;
+  const steplenRatio = (height != null && steplenMed != null) ? steplenMed / height : null;
 
-  let dsupportPenalty = 0;
-  if (dsupportMed != null && dsupportMed > sr.dsupport_threshold) dsupportPenalty = sr.dsupport_penalty;
+  const asymScore = asymMed != null ? scoreFromAnchors(asymMed, gr.asym_anchors) : null;
+  const speedScore = speedRatio != null ? scoreFromAnchors(speedRatio, gr.speed_ratio_anchors) : null;
+  const dsupportScore = dsupportMed != null ? scoreFromAnchors(dsupportMed, gr.dsupport_anchors) : null;
+  const steplenScore = steplenRatio != null ? scoreFromAnchors(steplenRatio, gr.steplen_ratio_anchors) : null;
 
-  const speedDiff = baseline - speedMed;
-  let speedPenalty = 0;
-  if (speedDiff >= sr.speed_severe_diff) speedPenalty = sr.speed_severe_penalty;
-  else if (speedDiff >= sr.speed_mild_diff) speedPenalty = sr.speed_mild_penalty;
-
-  const score = clampScore(100 - asymPenalty - dsupportPenalty - speedPenalty);
-  const breakdown = [
-    `基準100点。左右非対称性 中央値${asymMed.toFixed(2)}% → ${asymPenalty ? `-${asymPenalty}点` : "減点なし"}`,
-    `両脚支持時間 ${dsupportMed != null ? `中央値${dsupportMed.toFixed(1)}%` : "データなし"} → ${dsupportPenalty ? `-${dsupportPenalty}点` : "減点なし"}`,
-    `歩行速度 中央値${speedMed.toFixed(2)}m/s（基準${baseline.toFixed(2)}m/s${profile && profile.age != null ? `・${profile.age}歳の年代別基準` : "・年齢未入力のため一律基準1.20m/s"}、差${speedDiff.toFixed(2)}m/s） → ${speedPenalty ? `-${speedPenalty}点` : "減点なし"}`,
-    `合計：${score}点`,
+  const weights = height != null ? gr.weights_with_height : gr.weights_without_height;
+  const items = [
+    { key: "asym", label: "左右非対称性", score: asymScore, weight: weights.asym },
+    { key: "speed", label: "歩行速度", score: speedScore, weight: weights.speed },
+    { key: "dsupport", label: "両脚支持時間", score: dsupportScore, weight: weights.dsupport },
   ];
-  return { ...scoreToStatus(score),
-    reason: `直近${th.window_days}日の左右非対称性 中央値${asymMed.toFixed(2)}%・歩行速度 中央値${speedMed.toFixed(2)}m/s`,
-    score, breakdown, asym_median: asymMed, speed_median: speedMed };
+  if (height != null) items.push({ key: "steplen", label: "歩幅比", score: steplenScore, weight: weights.steplen });
+
+  const avail = items.filter((it) => it.score != null);
+  if (!avail.length) {
+    return { ...scoreToStatus(null), reason: `直近${th.window_days}日の歩行関連データが不足しています。`,
+      score: null, breakdown: [`直近${th.window_days}日の左右非対称性・歩行速度・両脚支持時間・歩幅のいずれも測定データが無いため採点できません。`] };
+  }
+  const totalWeight = avail.reduce((s, it) => s + it.weight, 0);
+  const rawTotal = weightedAverageScore(items);
+  const score = Math.round(rawTotal);
+
+  const breakdown = items.map((it) => {
+    if (it.score == null) return `${it.label}：直近${th.window_days}日のデータが無いため除外し、残る指標で重みを再配分`;
+    const normW = it.weight / totalWeight;
+    let detail;
+    if (it.key === "asym") detail = `${asymMed.toFixed(2)}%（中央値）`;
+    else if (it.key === "speed") detail = `${speedMed.toFixed(2)}m/s（中央値、基準${speedRef.toFixed(2)}m/s${age != null ? `・${age}歳の年代別基準` : "・年齢未入力のため一律基準"}、比${speedRatio.toFixed(3)}）`;
+    else if (it.key === "dsupport") detail = `${dsupportMed.toFixed(1)}%（中央値）`;
+    else detail = `${steplenMed.toFixed(0)}cm ÷ 身長${height}cm = 比${steplenRatio.toFixed(3)}`;
+    return `${it.label} ${detail} → ${Math.round(it.score)}点 × 重み${normW.toFixed(2)}`;
+  });
+  breakdown.push(`合計：${score}点`);
+
+  const reason = `直近${th.window_days}日の左右非対称性${asymMed != null ? ` 中央値${asymMed.toFixed(2)}%` : "データなし"}・歩行速度${speedMed != null ? ` 中央値${speedMed.toFixed(2)}m/s` : "データなし"}`;
+  return { ...scoreToStatus(score), reason, score, breakdown, asym_median: asymMed, speed_median: speedMed };
 }
 function classifyActivity(dm, today) {
   const th = JUDGMENT_THRESHOLDS.activity;
-  const sr = SCORE_RULES.activity;
+  const ar = SCORE_RULES.activity;
   const start = addDaysIso(today, -th.window_days);
   const prevYearEnd = addDaysIso(today, -365);
   const prevYearStart = addDaysIso(today, -(365 + th.window_days));
@@ -946,19 +1060,24 @@ function classifyActivity(dm, today) {
       if (yoyPct < th.yoy_drop_alert_pct) reason += `。前年同期比${yoyPct.toFixed(0)}%——前年より大きく減少`;
     }
   }
-  const baseScore = Math.min(100, Math.round((stepsMed / sr.target_steps) * 100));
-  const yoyApplies = yoyPct != null && yoyPct <= sr.yoy_drop_threshold_pct;
-  const score = clampScore(yoyApplies ? baseScore - sr.yoy_penalty : baseScore);
+  const baseScoreRaw = Math.min(100, (stepsMed / ar.steps_target) * 100);
+  let penalty = 0, penaltyNote = null;
+  if (yoyPct != null) {
+    if (yoyPct <= ar.yoy_drop_severe_pct) { penalty = ar.yoy_penalty_severe; penaltyNote = `前年同期比${yoyPct.toFixed(0)}%（${ar.yoy_drop_severe_pct}%以下）のため -${penalty}点`; }
+    else if (yoyPct <= ar.yoy_drop_mild_pct) { penalty = ar.yoy_penalty_mild; penaltyNote = `前年同期比${yoyPct.toFixed(0)}%（${ar.yoy_drop_mild_pct}%以下）のため -${penalty}点`; }
+  }
+  const scoreRaw = clampScore(baseScoreRaw - penalty);
+  const score = Math.round(scoreRaw);
   const breakdown = [
-    `歩数スコア：min(100, ${Math.round(stepsMed).toLocaleString("ja-JP")}歩 ÷ ${sr.target_steps.toLocaleString("ja-JP")}歩 × 100) = ${baseScore}点`,
+    `歩数スコア：min(100, ${Math.round(stepsMed).toLocaleString("ja-JP")}歩 ÷ ${ar.steps_target.toLocaleString("ja-JP")}歩 × 100) = ${baseScoreRaw.toFixed(1)}点`,
   ];
-  if (yoyApplies) breakdown.push(`前年同期比${yoyPct.toFixed(0)}%（${sr.yoy_drop_threshold_pct}%以下）のため -${sr.yoy_penalty}点`);
+  if (penaltyNote) breakdown.push(penaltyNote);
   breakdown.push(`合計：${score}点`);
   return { ...scoreToStatus(score), reason, score, breakdown, steps_median: stepsMed, yoy_pct: yoyPct };
 }
 function classifyBodyComp(dm, today, profile) {
   const th = JUDGMENT_THRESHOLDS.body_comp;
-  const sr = SCORE_RULES.body_comp;
+  const bc = SCORE_RULES.body_comp;
   const fatStart = addDaysIso(today, -th.fat_window_days);
   const weightStart = addDaysIso(today, -th.weight_window_days);
   const fatVals = valuesInWindow(dm, "body_fat_pct", fatStart, today);
@@ -969,28 +1088,33 @@ function classifyBodyComp(dm, today, profile) {
 
   const eff = effectiveWeight(dm, profile);
   const height = profile && profile.height != null ? profile.height : null;
+  const sex = profile && (profile.sex === "male" || profile.sex === "female") ? profile.sex : null;
   let score = null;
   let breakdown;
   if (height != null && eff != null) {
     const heightM = height / 100;
     const bmi = eff.value / (heightM * heightM);
-    let bmiScore, diffText = "";
-    if (bmi >= sr.bmi_min && bmi <= sr.bmi_max) {
-      bmiScore = 100;
+    const bmiScore = scoreFromAnchors(bmi, bc.bmi_anchors);
+    const weightText = `体重${eff.value.toFixed(1)}kg${eff.manual ? "（手入力）" : "（ヘルスケアデータ）"}・身長${height}cmからBMI ${bmi.toFixed(1)}`;
+    if (fatMed != null && sex != null) {
+      const fatAnchors = sex === "male" ? bc.fat_anchors_male : bc.fat_anchors_female;
+      const fatScore = scoreFromAnchors(fatMed, fatAnchors);
+      const rawTotal = fatScore * bc.fat_weight + bmiScore * bc.bmi_weight;
+      score = Math.round(rawTotal);
+      breakdown = [
+        `${weightText} → ${Math.round(bmiScore)}点 × 重み${bc.bmi_weight}`,
+        `体脂肪率 中央値${fatMed.toFixed(1)}%（${sex === "male" ? "男性" : "女性"}の基準） → ${Math.round(fatScore)}点 × 重み${bc.fat_weight}`,
+        `合計：${score}点`,
+      ];
     } else {
-      const diff = bmi < sr.bmi_min ? sr.bmi_min - bmi : bmi - sr.bmi_max;
-      const penalty = diff * sr.bmi_penalty_per_unit;
-      bmiScore = Math.max(sr.bmi_score_floor, 100 - penalty);
-      diffText = `（適正帯から${diff.toFixed(1)}ずれ、-${penalty.toFixed(0)}点）`;
+      const cappedRaw = Math.min(bc.bmi_only_cap, bmiScore);
+      score = Math.round(cappedRaw);
+      breakdown = [
+        `${weightText} → ${Math.round(bmiScore)}点`,
+        "体脂肪率のデータがないため、BMIだけの推定です（筋肉量と脂肪量を区別できないため上限90点）。",
+        `合計：${score}点`,
+      ];
     }
-    let fatPenalty = 0;
-    if (fatMed != null && (fatMed < sr.fat_min || fatMed > sr.fat_max)) fatPenalty = sr.fat_penalty;
-    score = clampScore(bmiScore - fatPenalty);
-    breakdown = [
-      `体重${eff.value.toFixed(1)}kg${eff.manual ? "（手入力）" : "（ヘルスケアデータ）"}・身長${height}cmからBMI ${bmi.toFixed(1)} → ${Math.round(bmiScore)}点${diffText}`,
-      fatMed != null ? `体脂肪率 中央値${fatMed.toFixed(1)}% → ${fatPenalty ? `-${fatPenalty}点` : "減点なし"}` : "体脂肪率データなし（補正なし）",
-      `合計：${score}点`,
-    ];
   } else {
     breakdown = ["身長と体重（手入力またはヘルスケアデータ）が両方揃っていないため採点できません。身長と体重を入れると採点できます。"];
   }
@@ -999,9 +1123,9 @@ function classifyBodyComp(dm, today, profile) {
     : "身長と体重を入れると採点できます（判定不能）";
   return { ...scoreToStatus(score), reason, score, breakdown, fat_median: fatMed, weight_max_dev: maxDev };
 }
-function classifyRecovery(dm, today) {
+function classifyRecovery(dm, today, profile) {
   const th = JUDGMENT_THRESHOLDS.recovery;
-  const sr = SCORE_RULES.recovery;
+  const rc = SCORE_RULES.recovery;
   const start = addDaysIso(today, -th.window_days);
   const rhrSeries = fetchSeries(dm, "resting_heart_rate_bpm");
   const hrvSeries = fetchSeries(dm, "hrv_sdnn_ms");
@@ -1018,25 +1142,30 @@ function classifyRecovery(dm, today) {
   const hrvMed = hrvVals.length ? median(hrvVals) : null;
   const rhrText = rhrMed != null ? `${Math.round(rhrMed)}bpm` : "データなし";
 
+  const age = profile && profile.age != null ? profile.age : null;
+  const hrvRef = hrvRefForAge(age);
+  const hrvRatio = hrvMed != null ? hrvMed / hrvRef : null;
+  const rhrScore = rhrMed != null ? scoreFromAnchors(rhrMed, rc.rhr_anchors) : null;
+  const hrvScore = hrvRatio != null ? scoreFromAnchors(hrvRatio, rc.hrv_ratio_anchors) : null;
+
   let score = null;
   const breakdown = [];
-  if (rhrMed != null) {
-    let baseScore, tierText;
-    if (rhrMed < sr.rhr_good_max) { baseScore = sr.rhr_good_score; tierText = `${sr.rhr_good_max}bpm未満`; }
-    else if (rhrMed <= sr.rhr_watch_max) { baseScore = sr.rhr_watch_score; tierText = `${sr.rhr_good_max}〜${sr.rhr_watch_max}bpm`; }
-    else { baseScore = sr.rhr_warn_score; tierText = `${sr.rhr_watch_max}bpm超`; }
-    breakdown.push(`安静時心拍 中央値${rhrMed.toFixed(0)}bpm（${tierText}）→ ${baseScore}点`);
-    let hrvAdj = 0;
-    if (hrvMed != null) {
-      hrvAdj = hrvMed >= sr.hrv_healthy_min ? sr.hrv_bonus : -sr.hrv_penalty;
-      breakdown.push(`HRV 中央値${hrvMed.toFixed(0)}ms（目安${sr.hrv_healthy_min}ms${hrvMed >= sr.hrv_healthy_min ? "以上" : "未満"}）→ ${hrvAdj >= 0 ? "+" : ""}${hrvAdj}点`);
-    } else {
-      breakdown.push("HRVデータなし（補正なし）");
-    }
-    score = clampScore(baseScore + hrvAdj);
+  if (rhrScore != null && hrvScore != null) {
+    score = Math.round(rhrScore * rc.rhr_weight + hrvScore * rc.hrv_weight);
+    breakdown.push(`安静時心拍 中央値${rhrMed.toFixed(0)}bpm → ${Math.round(rhrScore)}点 × 重み${rc.rhr_weight}`);
+    breakdown.push(`HRV 中央値${hrvMed.toFixed(0)}ms（基準${hrvRef}ms${age != null ? `・${age}歳の年代別基準` : "・年齢未入力のため一律基準"}、比${hrvRatio.toFixed(2)}） → ${Math.round(hrvScore)}点 × 重み${rc.hrv_weight}`);
     breakdown.push(`合計：${score}点`);
+  } else if (rhrScore != null) {
+    score = Math.round(rhrScore);
+    breakdown.push(`安静時心拍 中央値${rhrMed.toFixed(0)}bpm → ${score}点（HRVデータなしのため単独採用。合計：${score}点）`);
+  } else if (hrvScore != null) {
+    score = Math.round(hrvScore);
+    breakdown.push(`HRV 中央値${hrvMed.toFixed(0)}ms（基準${hrvRef}ms、比${hrvRatio.toFixed(2)}） → ${score}点（安静時心拍データなしのため単独採用。合計：${score}点）`);
   } else {
-    breakdown.push("安静時心拍データがないため採点できません。");
+    breakdown.push("安静時心拍・HRVいずれもデータがないため採点できません。");
+  }
+  if (rhrMed != null && rhrMed < 40) {
+    breakdown.push("持久系トレーニングによる徐脈の可能性もありますが、極端に低い場合は一度医療機関の確認を。");
   }
   return { ...scoreToStatus(score), reason: `直近${th.window_days}日の計測日数${measuredDays}日・安静時心拍 中央値${rhrText}`,
     measured_days: measuredDays, rhr_median: rhrMed, hrv_median: hrvMed, score, breakdown };
@@ -1046,8 +1175,16 @@ function buildVerdicts(dm, today, profile) {
     gait: { title: "歩きの質", ...classifyGaitQuality(dm, today, profile) },
     activity: { title: "活動量", ...classifyActivity(dm, today) },
     body_comp: { title: "体組成", ...classifyBodyComp(dm, today, profile) },
-    recovery: { title: "回復系", ...classifyRecovery(dm, today) },
+    recovery: { title: "回復系", ...classifyRecovery(dm, today, profile) },
   };
+}
+// 材料のある項目のスコアの単純平均。材料不足の項目は平均から除外。全項目材料不足ならnull。
+function computeOverallScore(verdicts) {
+  const order = ["gait", "activity", "body_comp", "recovery"];
+  const scores = order.map((k) => verdicts[k].score).filter((s) => s != null);
+  if (!scores.length) return null;
+  const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+  return { score: Math.round(avg), count: scores.length };
 }
 function headlineAction(key, dm, today) {
   if (key === "activity") {
@@ -1065,16 +1202,21 @@ function headlineAction(key, dm, today) {
 }
 function buildHeadline(verdicts, dm, today) {
   const order = ["gait", "activity", "body_comp", "recovery"];
-  const groups = { good: [], watch: [], warn: [], gray: [] };
-  for (const key of order) groups[verdicts[key].level].push([key, verdicts[key].title]);
+  const groups = { top: [], watch: [], caution: [], warn: [], gray: [] };
+  for (const key of order) {
+    const lvl = verdicts[key].level;
+    const bucket = isPositiveLevel(lvl) ? "top" : lvl;
+    groups[bucket].push([key, verdicts[key].title]);
+  }
   const parts = [];
-  if (groups.good.length) parts.push(groups.good.map(([, t]) => t).join("・") + "は良好");
-  if (groups.watch.length) parts.push(groups.watch.map(([, t]) => t).join("・") + "は要観察");
+  if (groups.top.length) parts.push(groups.top.map(([, t]) => t).join("・") + "は良好");
+  if (groups.watch.length) parts.push(groups.watch.map(([, t]) => t).join("・") + "はまずまず");
+  if (groups.caution.length) parts.push(groups.caution.map(([, t]) => t).join("・") + "は要観察");
   if (groups.warn.length) parts.push(groups.warn.map(([, t]) => t).join("・") + "が要注意");
   if (!parts.length) return "今月は判定材料が不足しています——Watch装着とデータ取り込みを";
   const status = parts.join("、");
   let action = null;
-  for (const level of ["warn", "watch"]) {
+  for (const level of ["warn", "caution", "watch"]) {
     for (const [key] of groups[level]) { action = headlineAction(key, dm, today); if (action) break; }
     if (action) break;
   }
@@ -1234,7 +1376,7 @@ function buildFindings(dm, today, verdicts) {
   const rhrMed30 = median(rhrSeries.filter(([d, v]) => d >= th30 && d < today && v != null).map(([, v]) => v));
   const hrvMed30 = median(hrvSeries.filter(([d, v]) => d >= th30 && d < today && v != null).map(([, v]) => v));
 
-  const gaitOk = verdicts.gait.level === "good";
+  const gaitOk = isPositiveLevel(verdicts.gait.level);
   const oneLiner = gaitOk ? "左右非対称性・歩行速度ともに大きな崩れは見られません"
     : verdicts.gait.level === "gray" ? "歩きの質を判定するにはデータがまだ不足しています"
     : "歩行速度や左右非対称性にいつもと違う値が出ています";
@@ -1256,7 +1398,7 @@ function buildFindings(dm, today, verdicts) {
     : "安静時心拍・HRVのデータが直近30日で不足しています。";
 
   let nextAction;
-  if (verdicts.activity.level !== "good" && steps90 != null) {
+  if (!isPositiveLevel(verdicts.activity.level) && steps90 != null) {
     nextAction = `次の一手は、1日あたりの歩数を直近90日中央値${Math.round(steps90).toLocaleString("ja-JP")}歩付近へ戻すことです。そのうえで左右非対称性・歩行速度が今の水準で保たれるかを確認すると、量の不足か歩行機能の変化かを切り分けやすくなります。`;
   } else if (verdicts.recovery.level === "gray") {
     nextAction = "次の一手は、Watch装着日を増やして回復系データ（安静時心拍・HRV）の蓄積を進めることです。";
@@ -1329,11 +1471,13 @@ async function deleteReport() {
 // --- わたしの情報（プロフィール）。健康データ（reports）とは別ストアに保存する。
 // 「保存データを消す」（health importの削除）でプロフィールまでは消えない設計。
 function normalizeProfile(p) {
+  const sex = p && typeof p.sex === "string" && (p.sex === "male" || p.sex === "female" || p.sex === "unspecified") ? p.sex : null;
   return {
     age: p && typeof p.age === "number" && !Number.isNaN(p.age) ? p.age : null,
     height: p && typeof p.height === "number" && !Number.isNaN(p.height) ? p.height : null,
     weight: p && typeof p.weight === "number" && !Number.isNaN(p.weight) ? p.weight : null,
     weightDate: p && typeof p.weightDate === "string" ? p.weightDate : null,
+    sex, // 任意項目。既存プロフィールにキーが無い場合はnull（=未入力）として扱う後方互換
   };
 }
 async function saveProfile(profile) {
@@ -1585,10 +1729,17 @@ function drawPointChart(canvasId, seriesList, opts) {
 const els = {};
 function q(id) { return document.getElementById(id); }
 
+function renderOverallScore(verdicts) {
+  const overall = computeOverallScore(verdicts);
+  if (!els.overallScore) return;
+  if (!overall) { els.overallScore.textContent = ""; return; }
+  els.overallScore.innerHTML = `総合 <span class="overall-score-num">${overall.score}</span><span class="overall-score-unit"> / 100</span>`;
+}
 function renderVerdicts(verdicts, headline) {
   els.verdictHeadline.textContent = headline;
+  renderOverallScore(verdicts);
   const baseOrder = ["gait", "activity", "body_comp", "recovery"];
-  const severityRank = { warn: 0, watch: 1, gray: 2, good: 3 };
+  const severityRank = { warn: 0, caution: 1, watch: 2, gray: 3, good: 4, excellent: 5 };
   const order = baseOrder.slice().sort((a, b) => (severityRank[verdicts[a].level] ?? 9) - (severityRank[verdicts[b].level] ?? 9));
   els.verdictList.innerHTML = order.map((key, i) => {
     const v = verdicts[key];
@@ -1888,7 +2039,7 @@ function enterDemoMode() {
   // （保存はしない＝currentProfileやIndexedDBには一切触れない）。実データが入力済みならそれを使う。
   const demoProfile = (currentProfile && currentProfile.height != null && currentProfile.age != null)
     ? currentProfile
-    : normalizeProfile({ age: 42, height: 165, weight: null, weightDate: null });
+    : normalizeProfile({ age: 42, height: 165, weight: null, weightDate: null, sex: "female" });
   renderReport(dm, today, { importedAt: null, sourceLabel: null }, demoProfile);
   q("import-section").classList.add("hidden-section");
   q("saved-badge").style.display = "none";
@@ -1926,16 +2077,19 @@ function readProfileFromInputs() {
   const ageRaw = els.profileAge.value.trim();
   const heightRaw = els.profileHeight.value.trim();
   const weightRaw = els.profileWeight.value.trim();
+  const sexRaw = els.profileSex.value;
   return {
     age: ageRaw === "" ? null : Number(ageRaw),
     height: heightRaw === "" ? null : Number(heightRaw),
     weight: weightRaw === "" ? null : Number(weightRaw),
+    sex: sexRaw === "" ? null : sexRaw,
   };
 }
 function populateProfileInputs(profile) {
   els.profileAge.value = profile && profile.age != null ? profile.age : "";
   els.profileHeight.value = profile && profile.height != null ? profile.height : "";
   els.profileWeight.value = profile && profile.weight != null ? profile.weight : "";
+  els.profileSex.value = profile && profile.sex ? profile.sex : "";
   updateProfileHint(profile);
 }
 function updateProfileHint(profile) {
@@ -1945,7 +2099,7 @@ function updateProfileHint(profile) {
   els.profileHint.textContent = missing.length ? `${missing.join("・")}を入れると精度が上がります。` : "";
 }
 async function handleProfileInputChange() {
-  const { age, height, weight } = readProfileFromInputs();
+  const { age, height, weight, sex } = readProfileFromInputs();
   const ageErr = validateProfileField("age", age);
   const heightErr = validateProfileField("height", height);
   const weightErr = validateProfileField("weight", weight);
@@ -1963,7 +2117,7 @@ async function handleProfileInputChange() {
     ? (weight !== prevWeight || !currentProfile || !currentProfile.weightDate ? localDateKey(new Date()) : currentProfile.weightDate)
     : null;
 
-  currentProfile = normalizeProfile({ age, height, weight, weightDate });
+  currentProfile = normalizeProfile({ age, height, weight, weightDate, sex });
   updateProfileHint(currentProfile);
   try {
     await saveProfile(currentProfile);
@@ -1994,16 +2148,19 @@ function wireUi() {
   els.profileAge = q("profile-age");
   els.profileHeight = q("profile-height");
   els.profileWeight = q("profile-weight");
+  els.profileSex = q("profile-sex");
   els.profileAgeError = q("profile-age-error");
   els.profileHeightError = q("profile-height-error");
   els.profileWeightError = q("profile-weight-error");
   els.profileHint = q("profile-hint");
   els.profileSaveNote = q("profile-save-note");
   els.dzTitle = q("dz-title");
+  els.overallScore = q("overall-score");
 
   els.profileAge.addEventListener("input", handleProfileInputChange);
   els.profileHeight.addEventListener("input", handleProfileInputChange);
   els.profileWeight.addEventListener("input", handleProfileInputChange);
+  els.profileSex.addEventListener("change", handleProfileInputChange);
 
   if (typeof DecompressionStream === "undefined") {
     els.browserWarn.style.display = "block";
