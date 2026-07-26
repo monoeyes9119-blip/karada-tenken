@@ -1438,9 +1438,9 @@ function drawMonthlyChart(canvasId, series, opts) {
   const dpr = window.devicePixelRatio || 1;
   const cssWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 320;
   const cssHeight = opts.height || 200;
-  canvas.width = cssWidth * dpr; canvas.height = cssHeight * dpr; canvas.style.height = cssHeight + "px";
+  canvas.width = Math.round(cssWidth * dpr); canvas.height = Math.round(cssHeight * dpr); canvas.style.height = cssHeight + "px";
   const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssWidth, cssHeight);
   const padL = 46, padR = 12, padT = 12, padB = 20;
   const w = cssWidth - padL - padR, h = cssHeight - padT - padB;
@@ -1525,9 +1525,9 @@ function drawPointChart(canvasId, seriesList, opts) {
   const dpr = window.devicePixelRatio || 1;
   const cssWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 320;
   const cssHeight = opts.height || 200;
-  canvas.width = cssWidth * dpr; canvas.height = cssHeight * dpr; canvas.style.height = cssHeight + "px";
+  canvas.width = Math.round(cssWidth * dpr); canvas.height = Math.round(cssHeight * dpr); canvas.style.height = cssHeight + "px";
   const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssWidth, cssHeight);
   const padL = 46, padR = 12, padT = 12, padB = 20;
   const w = cssWidth - padL - padR, h = cssHeight - padT - padB;
@@ -1660,13 +1660,17 @@ function renderReport(dailyMetrics, today, meta, profile) {
 
   currentReportData = { dailyMetrics, today, meta, profile };
 
+  // 先に表示状態にしてからチャートを描く：display:noneのまま描画するとcanvasの
+  // clientWidthが0になり、drawMonthlyChart/drawPointChart側のフォールバック幅(320px)で
+  // バッキングストアが作られてしまい、実際のCSS幅と食い違って2倍にぼやけて見える
+  // （右端が切れる）回帰バグの原因だった。measurable widthを確保してから描画する。
+  document.getElementById("report-root").classList.remove("hidden-section");
+
   renderVerdicts(verdicts, headline);
   renderProfile(profileSnapshot);
   renderFindings(findings);
   renderChartTitles(charts);
   renderCharts(charts, recentCutoff);
-
-  document.getElementById("report-root").classList.remove("hidden-section");
 
   renderSavedBadge(meta);
 }
